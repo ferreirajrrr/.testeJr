@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Babá Eletrônica Beta</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; }
+        video { width: 640px; height: 480px; background: #000; border-radius: 8px; margin-bottom: 20px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Monitor da Babá Eletrônica</h1>
+    <video id="videoLocal" autoplay playsinline muted></video>
+    <br>
+    <button id="btnIniciar">Ligar Câmera e Microfone</button>
+    <button id="btnGravar" style="display: none;">Iniciar Gravação</button>
+    <button id="btnParar" style="display: none;">Parar e Salvar</button>
+
+    <script>
+        const videoLocal = document.getElementById('videoLocal');
+        const btnIniciar = document.getElementById('btnIniciar');
+        const btnGravar = document.getElementById('btnGravar');
+        const btnParar = document.getElementById('btnParar');
+
+        let streamGlobal;
+        let gravador;
+        let pedacosDeVideo = [];
+
+        btnIniciar.addEventListener('click', async () => {
+            try {
+                streamGlobal = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                videoLocal.srcObject = streamGlobal;
+                btnIniciar.style.display = 'none';
+                btnGravar.style.display = 'inline-block';
+            } catch (erro) {
+                console.error("Erro ao acessar hardware:", erro);
+                alert("Verifique se a câmera e o microfone estão conectados e permitidos.");
+            }
+        });
+
+        btnGravar.addEventListener('click', () => {
+            pedacosDeVideo = [];
+            gravador = new MediaRecorder(streamGlobal);
+            
+            gravador.ondataavailable = (evento) => {
+                if (evento.data.size > 0) {
+                    pedacosDeVideo.push(evento.data);
+                }
+            };
+
+            gravador.onstop = () => {
+                const blob = new Blob(pedacosDeVideo, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'gravacao_baba.webm';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            };
+
+            gravador.start();
+            btnGravar.style.display = 'none';
+            btnParar.style.display = 'inline-block';
+        });
+
+        btnParar.addEventListener('click', () => {
+            gravador.stop();
+            btnParar.style.display = 'none';
+            btnGravar.style.display = 'inline-block';
+        });
+    </script>
+</body>
+</html>
