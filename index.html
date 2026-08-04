@@ -2,74 +2,93 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Babá Eletrônica Beta</title>
+    <title>Babá Eletrônica - Transmissão Ao Vivo</title>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; }
-        video { width: 640px; height: 480px; background: #000; border-radius: 8px; margin-bottom: 20px; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; }
+        video { width: 100%; max-width: 500px; background: #000; border-radius: 8px; margin: 10px 0; }
+        button { padding: 15px 30px; font-size: 18px; cursor: pointer; margin: 10px; border-radius: 5px; border: none; background-color: #007bff; color: white; }
+        #areaVideo { display: none; }
+        h2 { color: #333; }
     </style>
 </head>
 <body>
-    <h1>Monitor da Babá Eletrônica</h1>
-    <video id="videoLocal" autoplay playsinline muted></video>
-    <br>
-    <button id="btnIniciar">Ligar Câmera e Microfone</button>
-    <button id="btnGravar" style="display: none;">Iniciar Gravação</button>
-    <button id="btnParar" style="display: none;">Parar e Salvar</button>
+    <h1>Babá Eletrônica Ao Vivo</h1>
+    
+    <div id="selecaoPerfil">
+        <button id="btnCamera">Sou a Câmera (Fica com o Bebê)</button>
+        <button id="btnMonitor">Sou o Monitor (Fica com os Pais)</button>
+    </div>
+
+    <div id="areaVideo">
+        <h2 id="tituloPapel"></h2>
+        <video id="meuVideo" autoplay playsinline muted></video>
+        <video id="videoRemoto" autoplay playsinline></video>
+    </div>
 
     <script>
-        const videoLocal = document.getElementById('videoLocal');
-        const btnIniciar = document.getElementById('btnIniciar');
-        const btnGravar = document.getElementById('btnGravar');
-        const btnParar = document.getElementById('btnParar');
+        const selecaoPerfil = document.getElementById('selecaoPerfil');
+        const areaVideo = document.getElementById('areaVideo');
+        const tituloPapel = document.getElementById('tituloPapel');
+        const meuVideo = document.getElementById('meuVideo');
+        const videoRemoto = document.getElementById('videoRemoto');
 
-        let streamGlobal;
-        let gravador;
-        let pedacosDeVideo = [];
+        const protocolo = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = protocolo + "//" + window.location.host + "/ws";
+        const ws = new WebSocket(wsUrl);
 
-        btnIniciar.addEventListener('click', async () => {
-            try {
-                streamGlobal = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                videoLocal.srcObject = streamGlobal;
-                btnIniciar.style.display = 'none';
-                btnGravar.style.display = 'inline-block';
-            } catch (erro) {
-                console.error("Erro ao acessar hardware:", erro);
-                alert("Verifique se a câmera e o microfone estão conectados e permitidos.");
+        const configuracaoRTC = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        const peerConnection = new RTCPeerConnection(configuracaoRTC);
+
+        let streamLocal;
+
+        peerConnection.ontrack = (evento) => {
+            videoRemoto.srcObject = evento.streams[0];
+        };
+
+        peerConnection.onicecandidate = (evento) => {
+            if (evento.candidate) {
+                ws.send(JSON.stringify({ tipo: 'candidato-ice', candidato: evento.candidate }));
             }
+        };
+
+        ws.onmessage = async (mensagem) => {
+            const dados = JSON.parse(mensagem.data);
+
+            if (dados.tipo === 'oferta') {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(dados.oferta));
+                const resposta = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(resposta);
+                ws.send(JSON.stringify({ tipo: 'resposta', resposta: resposta }));
+            } 
+            else if (dados.tipo === 'resposta') {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(dados.resposta));
+            } 
+            else if (dados.tipo === 'candidato-ice') {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(dados.candidato));
+            }
+        };
+
+        document.getElementById('btnCamera').addEventListener('click', async () => {
+            selecaoPerfil.style.display = 'none';
+            areaVideo.style.display = 'block';
+            tituloPapel.innerText = "Câmera Ativa (Bebê)";
+            videoRemoto.style.display = 'none';
+
+            streamLocal = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            meuVideo.srcObject = streamLocal;
+
+            streamLocal.getTracks().forEach(track => peerConnection.addTrack(track, streamLocal));
+
+            const oferta = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(oferta);
+            ws.send(JSON.stringify({ tipo: 'oferta', oferta: oferta }));
         });
 
-        btnGravar.addEventListener('click', () => {
-            pedacosDeVideo = [];
-            gravador = new MediaRecorder(streamGlobal);
-            
-            gravador.ondataavailable = (evento) => {
-                if (evento.data.size > 0) {
-                    pedacosDeVideo.push(evento.data);
-                }
-            };
-
-            gravador.onstop = () => {
-                const blob = new Blob(pedacosDeVideo, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = 'gravacao_baba.webm';
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-            };
-
-            gravador.start();
-            btnGravar.style.display = 'none';
-            btnParar.style.display = 'inline-block';
-        });
-
-        btnParar.addEventListener('click', () => {
-            gravador.stop();
-            btnParar.style.display = 'none';
-            btnGravar.style.display = 'inline-block';
+        document.getElementById('btnMonitor').addEventListener('click', () => {
+            selecaoPerfil.style.display = 'none';
+            areaVideo.style.display = 'block';
+            tituloPapel.innerText = "Monitor Ativo (Pais)";
+            meuVideo.style.display = 'none';
         });
     </script>
 </body>
