@@ -1,5 +1,6 @@
 import os
 import io
+import json
 import asyncio
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect, Request
@@ -12,6 +13,7 @@ from googleapiclient.http import MediaIoBaseUpload
 app = FastAPI()
 
 clientes_conectados = []
+ultimo_geo_cache = "Aguardando Câmera..."
 
 SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
 PASTA_ID = "1Zy3Hn3QuTQdOSKP0RMhc7isr-xBWQnGf"
@@ -64,15 +66,30 @@ async def fazer_login(request: Request):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    global ultimo_geo_cache
     await websocket.accept()
     clientes_conectados.append(websocket)
+    
+    if ultimo_geo_cache:
+        try:
+            await websocket.send_text(json.dumps({"tipo": "GEO", "dados": ultimo_geo_cache}))
+        except:
+            pass
+
     try:
         while True:
-            dados = await websocket.receive_text()
+            texto_recebido = await websocket.receive_text()
+            try:
+                pacote = json.loads(texto_recebido)
+                if pacote.get("tipo") == "GEO":
+                    ultimo_geo_cache = pacote.get("dados")
+            except:
+                pass
+
             for cliente in clientes_conectados.copy():
                 if cliente != websocket:
                     try:
-                        await cliente.send_text(dados)
+                        await cliente.send_text(texto_recebido)
                     except Exception:
                         if cliente in clientes_conectados:
                             clientes_conectados.remove(cliente)
