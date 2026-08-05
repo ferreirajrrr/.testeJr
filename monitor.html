@@ -12,26 +12,20 @@
         body.alerta-bg { background-image: radial-gradient(circle at 50% 0%, #3a0a0a 0%, #000000 80%); }
         .glass-panel { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); text-align: center; width: 100%; max-width: 600px; box-sizing: border-box; transition: border-color 0.5s ease; }
         .glass-panel.alerta-border { border-color: rgba(255, 69, 58, 0.4); }
-        
-        /* Tela de Login */
         #tela-login { display: block; }
         #tela-monitor { display: none; }
         input[type="password"] { width: 100%; padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff; font-size: 16px; margin-bottom: 15px; box-sizing: border-box; text-align: center; }
         .btn-login { width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 600; background: #0a84ff; color: #fff; border: none; cursor: pointer; }
         #erro-login { color: #ff453a; font-size: 14px; margin-top: 10px; display: none; }
-
-        /* Dashboard */
         .dashboard { display: flex; flex-wrap: wrap; justify-content: space-between; font-size: 12px; color: #a1a1a6; margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 12px; }
         .dash-item { margin: 5px; display: flex; align-items: center; gap: 5px; }
-        
         img { width: 100%; border-radius: 16px; background: #0a0a0a; margin-bottom: 20px; min-height: 200px; object-fit: cover; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
-        
-        /* Controles de Áudio */
         .controles-audio { display: flex; gap: 10px; margin-top: 20px; justify-content: center; }
-        .btn-audio { padding: 12px 20px; border-radius: 20px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.1); color: #fff; }
-        .modulador { width: 100px; height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden; margin: 10px auto; }
-        .barra-som { height: 100%; background: #32d74b; width: 0%; transition: width 0.1s; }
-
+        .btn-audio { padding: 12px 20px; border-radius: 20px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.1); color: #fff; user-select: none; -webkit-user-select: none; }
+        .btn-audio:active { opacity: 0.8; }
+        .btn-ativo { background: #ff453a !important; color: white !important; }
+        .modulador { width: 150px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden; margin: 15px auto; }
+        .barra-som { height: 100%; background: #0a84ff; width: 0%; transition: width 0.05s; }
         .status-badge { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: 30px; font-size: 13px; font-weight: 600; letter-spacing: 1px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); }
         .dot { width: 8px; height: 8px; border-radius: 50%; }
         .seguro .dot { background: #32d74b; box-shadow: 0 0 10px #32d74b; }
@@ -41,7 +35,6 @@
     </style>
 </head>
 <body>
-    <!-- Tela de Login -->
     <div id="tela-login" class="glass-panel">
         <h2 style="margin-bottom: 20px;">Acesso Restrito</h2>
         <input type="password" id="senha" placeholder="Digite a senha administrativa">
@@ -49,7 +42,6 @@
         <div id="erro-login">Senha incorreta.</div>
     </div>
 
-    <!-- Painel do Monitor -->
     <div id="tela-monitor">
         <div id="painel-principal" class="glass-panel">
             <div class="dashboard">
@@ -67,52 +59,32 @@
             <div class="modulador"><div class="barra-som" id="barra-som"></div></div>
 
             <div class="controles-audio">
-                <button class="btn-audio" id="btn-mutar">Desmutar Câmera</button>
-                <button class="btn-audio" id="btn-call" style="background: #0a84ff;">Iniciar Call</button>
+                <button class="btn-audio" id="btn-call" style="background: #0a84ff;">Segure para Falar</button>
             </div>
         </div>
     </div>
 
     <script>
-        // Sistema de Login
         async function tentarLogin() {
             const senha = document.getElementById('senha').value;
-            const resposta = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ senha: senha })
-            });
+            const resposta = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: senha }) });
             const dados = await resposta.json();
-            
             if(dados.sucesso) {
                 document.getElementById('tela-login').style.display = 'none';
                 document.getElementById('tela-monitor').style.display = 'block';
                 iniciarMonitor();
-            } else {
-                document.getElementById('erro-login').style.display = 'block';
-            }
+            } else { document.getElementById('erro-login').style.display = 'block'; }
         }
 
-        // Dashboard Info
         setInterval(() => { document.getElementById('info-hora').innerText = new Date().toLocaleTimeString(); }, 1000);
-        
-        fetch('https://api.ipify.org?format=json')
-            .then(res => res.json())
-            .then(data => document.getElementById('info-ip').innerText = data.ip)
-            .catch(() => document.getElementById('info-ip').innerText = "Oculto");
-            
-        if (navigator.connection) {
-            document.getElementById('info-sinal').innerText = navigator.connection.effectiveType.toUpperCase();
-        } else {
-            document.getElementById('info-sinal').innerText = "Estável";
-        }
+        fetch('https://api.ipify.org?format=json').then(res => res.json()).then(data => document.getElementById('info-ip').innerText = data.ip).catch(() => document.getElementById('info-ip').innerText = "Oculto");
+        if (navigator.connection) { document.getElementById('info-sinal').innerText = navigator.connection.effectiveType.toUpperCase(); } else { document.getElementById('info-sinal').innerText = "Estável"; }
 
-        // Lógica do Monitor de Vídeo
         const painel = document.getElementById('painel-principal');
         const statusVisual = document.getElementById('status-visual');
         const statusTexto = document.getElementById('status-texto');
         const imagemAoVivo = document.getElementById('video-ao-vivo');
-        let timeoutAlerta, timeoutConexao;
+        let timeoutAlerta, timeoutConexao, wsGlobal;
 
         function atualizarStatusSeguro() {
             statusVisual.className = "status-badge seguro";
@@ -123,9 +95,9 @@
 
         function iniciarMonitor() {
             const protocolo = window.location.protocol === "https:" ? "wss:" : "ws:";
-            const ws = new WebSocket(protocolo + "//" + window.location.host + "/ws");
+            wsGlobal = new WebSocket(protocolo + "//" + window.location.host + "/ws");
 
-            ws.onmessage = (evento) => {
+            wsGlobal.onmessage = (evento) => {
                 try {
                     const pacote = JSON.parse(evento.data);
                     if (pacote.tipo === 'FRAME') {
@@ -140,7 +112,7 @@
                         if(statusTexto.innerText === "CONECTANDO...") atualizarStatusSeguro();
                     } else if (pacote.tipo === 'ALERTA') {
                         statusVisual.className = "status-badge alerta";
-                        statusTexto.innerText = "MOVIMENTO DETECTADO";
+                        statusTexto.innerText = pacote.dados.toUpperCase();
                         document.body.classList.add("alerta-bg"); 
                         painel.classList.add("alerta-border");
                         clearTimeout(timeoutAlerta);
@@ -148,17 +120,86 @@
                     }
                 } catch (e) {}
             };
-            ws.onclose = () => {
+            wsGlobal.onclose = () => {
                 statusVisual.className = "status-badge alerta";
                 statusTexto.innerText = "SERVIDOR DESCONECTADO";
                 setTimeout(iniciarMonitor, 3000);
             };
         }
+
+        // Sistema de Voz e Modulação
+        const btnCall = document.getElementById('btn-call');
+        const barraSom = document.getElementById('barra-som');
+        let gravadorAudio;
+        let contextoAudio;
+
+        async function prepararMicrofone() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                gravadorAudio = new MediaRecorder(stream);
+                
+                contextoAudio = new (window.AudioContext || window.webkitAudioContext)();
+                const fonte = contextoAudio.createMediaStreamSource(stream);
+                const analisador = contextoAudio.createAnalyser();
+                fonte.connect(analisador);
+                analisador.fftSize = 256;
+                const bufferLength = analisador.frequencyBinCount;
+                const dadosFrequencia = new Uint8Array(bufferLength);
+
+                function atualizarGrafico() {
+                    if (gravadorAudio.state === 'recording') {
+                        analisador.getByteFrequencyData(dadosFrequencia);
+                        let soma = 0;
+                        for(let i = 0; i < bufferLength; i++) { soma += dadosFrequencia[i]; }
+                        let media = soma / bufferLength;
+                        barraSom.style.width = (media * 1.5) + '%';
+                        requestAnimationFrame(atualizarGrafico);
+                    } else {
+                        barraSom.style.width = '0%';
+                    }
+                }
+
+                gravadorAudio.ondataavailable = async (e) => {
+                    if (wsGlobal && wsGlobal.readyState === WebSocket.OPEN && e.data.size > 0) {
+                        const leitor = new FileReader();
+                        leitor.readAsDataURL(e.data);
+                        leitor.onloadend = () => {
+                            wsGlobal.send(JSON.stringify({ tipo: 'AUDIO', dados: leitor.result }));
+                        };
+                    }
+                };
+
+                btnCall.addEventListener('mousedown', () => { 
+                    if(gravadorAudio.state === 'inactive') {
+                        gravadorAudio.start(500); // Envia pacotes a cada meio segundo
+                        btnCall.classList.add('btn-ativo');
+                        btnCall.innerText = "Gravando Voz...";
+                        atualizarGrafico();
+                    }
+                });
+                
+                btnCall.addEventListener('mouseup', () => {
+                    if(gravadorAudio.state === 'recording') {
+                        gravadorAudio.stop();
+                        btnCall.classList.remove('btn-ativo');
+                        btnCall.innerText = "Segure para Falar";
+                    }
+                });
+
+                // Suporte para touch no celular
+                btnCall.addEventListener('touchstart', (e) => { e.preventDefault(); btnCall.dispatchEvent(new Event('mousedown')); });
+                btnCall.addEventListener('touchend', (e) => { e.preventDefault(); btnCall.dispatchEvent(new Event('mouseup')); });
+
+            } catch (err) {
+                btnCall.innerText = "Microfone Bloqueado";
+                btnCall.disabled = true;
+            }
+        }
+
+        prepararMicrofone();
     </script>
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js'); });
-        }
+        if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js'); }); }
     </script>
 </body>
 </html>

@@ -7,69 +7,25 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#000000">
     <link rel="apple-touch-icon" href="/icone.png">
+    
+    <!-- Bibliotecas da Inteligência Artificial -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+
     <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", Roboto, sans-serif; 
-            background-color: #000000; 
-            background-image: radial-gradient(circle at 50% 0%, #1a1a1c 0%, #000000 80%);
-            color: #ffffff;
-            margin: 0; 
-            padding: 20px; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-        }
-        .glass-panel { 
-            background: rgba(255, 255, 255, 0.03); 
-            backdrop-filter: blur(20px); 
-            -webkit-backdrop-filter: blur(20px); 
-            border: 1px solid rgba(255, 255, 255, 0.1); 
-            border-radius: 24px; 
-            padding: 24px; 
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5); 
-            text-align: center; 
-            max-width: 600px; 
-            width: 100%; 
-            box-sizing: border-box;
-        }
-        h2 { 
-            font-weight: 600; 
-            font-size: 20px; 
-            margin: 0 0 20px 0; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            gap: 10px; 
-            letter-spacing: 0.5px;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", Roboto, sans-serif; background-color: #000000; background-image: radial-gradient(circle at 50% 0%, #1a1a1c 0%, #000000 80%); color: #ffffff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; box-sizing: border-box; }
+        .glass-panel { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); text-align: center; max-width: 600px; width: 100%; box-sizing: border-box; position: relative; }
+        h2 { font-weight: 600; font-size: 20px; margin: 0 0 20px 0; display: flex; align-items: center; justify-content: center; gap: 10px; letter-spacing: 0.5px; }
         svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-        video { 
-            width: 100%; 
-            border-radius: 16px; 
-            background: #0a0a0a; 
-            margin-bottom: 20px; 
-            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
-        }
-        canvas { display: none; }
-        .status-badge { 
-            display: inline-flex; 
-            align-items: center; 
-            gap: 10px; 
-            padding: 10px 20px; 
-            border-radius: 30px; 
-            font-size: 13px; 
-            font-weight: 600; 
-            letter-spacing: 1px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
+        video { width: 100%; border-radius: 16px; background: #0a0a0a; margin-bottom: 20px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
+        .status-badge { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: 30px; font-size: 13px; font-weight: 600; letter-spacing: 1px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); }
         .dot { width: 8px; height: 8px; border-radius: 50%; }
         .seguro .dot { background: #32d74b; box-shadow: 0 0 10px #32d74b; }
         .alerta { background: rgba(255, 69, 58, 0.1); border-color: rgba(255, 69, 58, 0.3); color: #ff453a; }
         .alerta .dot { background: #ff453a; box-shadow: 0 0 10px #ff453a; animation: pulse 1s infinite; }
+        .ia-loading { color: #0a84ff; border-color: rgba(10, 132, 255, 0.3); background: rgba(10, 132, 255, 0.1); }
+        .ia-loading .dot { background: #0a84ff; box-shadow: 0 0 10px #0a84ff; }
+        #canvas-ia { position: absolute; top: 72px; left: 24px; width: calc(100% - 48px); height: auto; z-index: 10; pointer-events: none; border-radius: 16px; }
         @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
     </style>
 </head>
@@ -77,19 +33,19 @@
     <div class="glass-panel">
         <h2>
             <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-            Câmera do Quarto
+            Câmera Inteligente
         </h2>
         <video id="video-local" autoplay playsinline muted></video>
-        <canvas id="canvas-movimento"></canvas> 
-        <div id="status-visual" class="status-badge seguro">
-            <div class="dot"></div> <span id="status-texto">INICIANDO SISTEMA...</span>
+        <canvas id="canvas-ia"></canvas>
+        <div id="status-visual" class="status-badge ia-loading">
+            <div class="dot"></div> <span id="status-texto">CARREGANDO IA NEURAL...</span>
         </div>
     </div>
 
     <script>
         const video = document.getElementById('video-local');
-        const canvasMovimento = document.getElementById('canvas-movimento');
-        const ctxMovimento = canvasMovimento.getContext('2d', { willReadFrequently: true });
+        const canvasIA = document.getElementById('canvas-ia');
+        const ctxIA = canvasIA.getContext('2d');
         const statusVisual = document.getElementById('status-visual');
         const statusTexto = document.getElementById('status-texto');
 
@@ -99,15 +55,26 @@
         canvasStream.height = 240;
 
         let ws;
-        let quadroAnterior = null;
         let gravador;
         let pedacosVideo = [];
         let gravando = false;
         let tempoUltimoMovimento = 0;
+        let modeloIA = null;
+        const alvos = ['person', 'dog', 'cat'];
 
         function atualizarStatus(tipo, mensagem) {
             statusVisual.className = "status-badge " + tipo;
             statusTexto.innerText = mensagem;
+        }
+
+        async function carregarInteligencia() {
+            try {
+                modeloIA = await cocoSsd.load();
+                atualizarStatus("seguro", "SISTEMA ONLINE E VIGIANDO");
+                processarVisaoComputacional();
+            } catch (e) {
+                atualizarStatus("alerta", "FALHA AO CARREGAR IA");
+            }
         }
 
         function conectarWebsocket() {
@@ -115,8 +82,6 @@
             ws = new WebSocket(protocolo + "//" + window.location.host + "/ws");
 
             ws.onopen = () => {
-                atualizarStatus("seguro", "TRANSMITINDO AO VIVO");
-                
                 setInterval(() => {
                     if (ws.readyState === WebSocket.OPEN && video.readyState >= 2) {
                         ctxStream.drawImage(video, 0, 0, canvasStream.width, canvasStream.height);
@@ -125,12 +90,27 @@
                     }
                 }, 250);
             };
+
+            ws.onmessage = (evento) => {
+                try {
+                    const pacote = JSON.parse(evento.data);
+                    if (pacote.tipo === 'AUDIO') {
+                        const som = new Audio(pacote.dados);
+                        som.play();
+                    }
+                } catch(e) {}
+            };
         }
 
         async function iniciarCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 video.srcObject = stream;
+                
+                video.onloadedmetadata = () => {
+                    canvasIA.width = video.videoWidth;
+                    canvasIA.height = video.videoHeight;
+                };
 
                 gravador = new MediaRecorder(stream, { mimeType: 'video/webm' });
                 gravador.ondataavailable = (e) => { if (e.data.size > 0) pedacosVideo.push(e.data); };
@@ -139,67 +119,68 @@
                     const blob = new Blob(pedacosVideo, { type: 'video/webm' });
                     pedacosVideo = [];
                     const pacote = new FormData();
-                    pacote.append("video", blob, "alerta_" + Date.now() + ".webm");
+                    pacote.append("video", blob, "alerta_ia_" + Date.now() + ".webm");
                     fetch("/alerta_movimento", { method: "POST", body: pacote });
                 };
 
-                video.addEventListener('play', processarMovimento);
+                carregarInteligencia();
             } catch (erro) {
                 atualizarStatus("alerta", "ERRO: CÂMERA BLOQUEADA");
             }
         }
 
-        function processarMovimento() {
-            if (video.paused || video.ended) return;
+        async function processarVisaoComputacional() {
+            if (video.paused || video.ended || !modeloIA) return;
 
-            canvasMovimento.width = video.videoWidth;
-            canvasMovimento.height = video.videoHeight;
-            ctxMovimento.drawImage(video, 0, 0, canvasMovimento.width, canvasMovimento.height);
-            const quadroAtual = ctxMovimento.getImageData(0, 0, canvasMovimento.width, canvasMovimento.height);
+            const previsoes = await modeloIA.detect(video);
+            ctxIA.clearRect(0, 0, canvasIA.width, canvasIA.height);
+            
+            let ameacaDetectada = false;
+            let nomeAmeaca = "";
 
-            if (quadroAnterior) {
-                let diferencas = 0;
-                for (let i = 0; i < quadroAtual.data.length; i += 4) {
-                    const r = Math.abs(quadroAtual.data[i] - quadroAnterior.data[i]);
-                    const g = Math.abs(quadroAtual.data[i+1] - quadroAnterior.data[i+1]);
-                    const b = Math.abs(quadroAtual.data[i+2] - quadroAnterior.data[i+2]);
-                    if (r + g + b > 100) diferencas++;
+            previsoes.forEach(previsao => {
+                if (alvos.includes(previsao.class) && previsao.score > 0.60) {
+                    ameacaDetectada = true;
+                    nomeAmeaca = previsao.class === 'person' ? 'PESSOA' : 'ANIMAL';
+                    
+                    ctxIA.beginPath();
+                    ctxIA.rect(...previsao.bbox);
+                    ctxIA.lineWidth = 4;
+                    ctxIA.strokeStyle = '#ff453a';
+                    ctxIA.fillStyle = '#ff453a';
+                    ctxIA.stroke();
+                    ctxIA.fillText(nomeAmeaca + " (" + Math.round(previsao.score * 100) + "%)", previsao.bbox[0], previsao.bbox[1] > 10 ? previsao.bbox[1] - 5 : 10);
                 }
+            });
 
-                if (diferencas > 5000) {
-                    tempoUltimoMovimento = Date.now();
-                    if (ws && ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({ tipo: 'ALERTA', dados: 'MOVIMENTO_DETECTADO' }));
-                    }
-                    if (!gravando && gravador.state === "inactive") {
-                        gravando = true;
-                        pedacosVideo = [];
-                        gravador.start();
-                        atualizarStatus("alerta", "MOVIMENTO DETECTADO");
-                        fetch("https://ntfy.sh/alerta_quarto", { method: "POST", body: "🚨 Alerta da Câmera: Movimento detectado no quarto!" });
-                    }
+            if (ameacaDetectada) {
+                tempoUltimoMovimento = Date.now();
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ tipo: 'ALERTA', dados: `IA DETECTOU: ${nomeAmeaca}` }));
+                }
+                if (!gravando && gravador.state === "inactive") {
+                    gravando = true;
+                    pedacosVideo = [];
+                    gravador.start();
+                    atualizarStatus("alerta", `GRAVANDO: ${nomeAmeaca} DETECTADO`);
                 }
             }
 
             if (gravando && (Date.now() - tempoUltimoMovimento > 5000)) {
                 gravador.stop();
                 gravando = false;
-                atualizarStatus("seguro", "TRANSMITINDO AO VIVO");
+                ctxIA.clearRect(0, 0, canvasIA.width, canvasIA.height);
+                atualizarStatus("seguro", "SISTEMA ONLINE E VIGIANDO");
             }
 
-            quadroAnterior = quadroAtual;
-            setTimeout(() => requestAnimationFrame(processarMovimento), 250);
+            requestAnimationFrame(processarVisaoComputacional);
         }
 
         conectarWebsocket();
         iniciarCamera();
     </script>
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js');
-            });
-        }
+        if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js'); }); }
     </script>
 </body>
 </html>
