@@ -1,6 +1,6 @@
 import os
 import io
-from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import HTMLResponse, FileResponse
 import uvicorn
 from google.oauth2.credentials import Credentials
@@ -14,6 +14,7 @@ clientes_conectados = []
 # Configuração do Google Drive e ID da sua pasta
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 PASTA_ID = "1Zy3Hn3QuTQdOSKP0RMhc7isr-xBWQnGf"
+SENHA_ADMIN = "admin123" # Você pode mudar sua senha aqui
 
 def obter_servico_drive():
     creds = Credentials.from_authorized_user_file('token.json', SCOPES)
@@ -24,19 +25,19 @@ async def receber_video(video: UploadFile = File(...)):
     try:
         conteudo = await video.read()
         servico = obter_servico_drive()
-        
-        # Aqui o Python recebe a instrução exata de onde salvar o arquivo
-        file_metadata = {
-            'name': video.filename,
-            'parents': [PASTA_ID]
-        }
-        
+        file_metadata = {'name': video.filename, 'parents': [PASTA_ID]}
         media = MediaIoBaseUpload(io.BytesIO(conteudo), mimetype=video.content_type, resumable=True)
         arquivo = servico.files().create(body=file_metadata, media_body=media, fields='id').execute()
-        
         return {"mensagem": "Vídeo salvo com sucesso na pasta", "id": arquivo.get("id")}
     except Exception as e:
         return {"erro": str(e)}
+
+@app.post("/api/login")
+async def fazer_login(request: Request):
+    dados = await request.json()
+    if dados.get("senha") == SENHA_ADMIN:
+        return {"sucesso": True}
+    return {"sucesso": False}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -50,6 +51,11 @@ async def websocket_endpoint(websocket: WebSocket):
                     await cliente.send_text(dados)
     except WebSocketDisconnect:
         clientes_conectados.remove(websocket)
+
+@app.get("/")
+async def renderizar_index():
+    with open("index.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 @app.get("/camera")
 async def renderizar_camera():
