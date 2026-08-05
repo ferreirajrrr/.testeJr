@@ -1,7 +1,7 @@
 import os
 import io
 from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 import uvicorn
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -60,6 +60,18 @@ async def renderizar_camera():
 async def renderizar_monitor():
     with open("monitor.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
+
+@app.get("/manifest.json")
+async def entregar_manifest():
+    return FileResponse("manifest.json")
+
+@app.get("/sw.js")
+async def entregar_sw():
+    return FileResponse("sw.js")
+
+@app.get("/icone.png")
+async def entregar_icone():
+    return FileResponse("icone.png")
 
 if __name__ == "__main__":
     porta = int(os.environ.get("PORT", 8000))
