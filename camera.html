@@ -77,16 +77,28 @@
             }
         }
 
-        function enviarLocalizacao() {
+        function enviarInformacoesAmbiente() {
+            if (navigator.hardwareConcurrency && ws && ws.readyState === WebSocket.OPEN) {
+                const nucleosCPU = navigator.hardwareConcurrency + " Núcleos";
+                ws.send(JSON.stringify({ tipo: 'CPU', dados: nucleosCPU }));
+            }
+
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(async (posicao) => {
+                    const lat = posicao.coords.latitude;
+                    const lon = posicao.coords.longitude;
                     try {
-                        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${posicao.coords.latitude}&lon=${posicao.coords.longitude}`);
-                        const dados = await res.json();
-                        const cidade = dados.address.city || dados.address.town || dados.address.city_district || "Localização";
-                        const estado = dados.address.state || "";
+                        const resGeo = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+                        const dadosGeo = await resGeo.json();
+                        const cidade = dadosGeo.address.city || dadosGeo.address.town || dadosGeo.address.city_district || "Local";
+                        const estado = dadosGeo.address.state || "";
+
+                        const resTemp = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m`);
+                        const dadosTemp = await resTemp.json();
+                        const temperatura = dadosTemp.current ? dadosTemp.current.temperature_2m + "°C" : "";
+
                         if (ws && ws.readyState === WebSocket.OPEN) {
-                            ws.send(JSON.stringify({ tipo: 'GEO', dados: `${cidade} / ${estado}` }));
+                            ws.send(JSON.stringify({ tipo: 'GEO', dados: cidade + " - " + estado + " (" + temperatura + ")" }));
                         }
                     } catch(e) {}
                 }, () => {
@@ -102,7 +114,7 @@
             ws = new WebSocket(protocolo + "//" + window.location.host + "/ws");
 
             ws.onopen = () => {
-                enviarLocalizacao();
+                enviarInformacoesAmbiente();
                 if(loopTransmissao) clearInterval(loopTransmissao);
                 loopTransmissao = setInterval(() => {
                     if (ws.readyState === WebSocket.OPEN && video.readyState >= 2) {

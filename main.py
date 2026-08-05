@@ -14,6 +14,7 @@ app = FastAPI()
 
 clientes_conectados = []
 ultimo_geo_cache = "Aguardando Câmera..."
+ultimo_cpu_cache = "Aguardando..."
 
 SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
 PASTA_ID = "1Zy3Hn3QuTQdOSKP0RMhc7isr-xBWQnGf"
@@ -66,13 +67,19 @@ async def fazer_login(request: Request):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    global ultimo_geo_cache
+    global ultimo_geo_cache, ultimo_cpu_cache
     await websocket.accept()
     clientes_conectados.append(websocket)
     
     if ultimo_geo_cache:
         try:
             await websocket.send_text(json.dumps({"tipo": "GEO", "dados": ultimo_geo_cache}))
+        except:
+            pass
+            
+    if ultimo_cpu_cache:
+        try:
+            await websocket.send_text(json.dumps({"tipo": "CPU", "dados": ultimo_cpu_cache}))
         except:
             pass
 
@@ -83,6 +90,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 pacote = json.loads(texto_recebido)
                 if pacote.get("tipo") == "GEO":
                     ultimo_geo_cache = pacote.get("dados")
+                elif pacote.get("tipo") == "CPU":
+                    ultimo_cpu_cache = pacote.get("dados")
             except:
                 pass
 
