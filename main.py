@@ -1,5 +1,7 @@
 import os
 import io
+import asyncio
+from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import HTMLResponse, FileResponse
 import uvicorn
@@ -11,14 +13,35 @@ app = FastAPI()
 
 clientes_conectados = []
 
-# Configuração do Google Drive e ID da sua pasta
-SCOPES = ['https://www.googleapis.com/auth/drive.file']
+SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
 PASTA_ID = "1Zy3Hn3QuTQdOSKP0RMhc7isr-xBWQnGf"
-SENHA_ADMIN = "admin123" # Você pode mudar sua senha aqui
+SENHA_ADMIN = "admin123" 
 
 def obter_servico_drive():
     creds = Credentials.from_authorized_user_file('token.json', SCOPES)
     return build('drive', 'v3', credentials=creds)
+
+async def reciclar_videos_antigos():
+    while True:
+        try:
+            servico = obter_servico_drive()
+            tempo_limite = (datetime.now(timezone.utc) - timedelta(hours=72)).isoformat()
+            
+            query = f"'{PASTA_ID}' in parents and createdTime < '{tempo_limite}' and trashed = false"
+            resultados = servico.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+            arquivos = resultados.get('files', [])
+            
+            for arquivo in arquivos:
+                servico.files().delete(fileId=arquivo['id']).execute()
+                
+        except Exception as e:
+            print("Erro na reciclagem de videos:", str(e))
+            
+        await asyncio.sleep(3600)
+
+@app.on_event("startup")
+async def iniciar_rotinas():
+    asyncio.create_task(reciclar_videos_antigos())
 
 @app.post("/alerta_movimento")
 async def receber_video(video: UploadFile = File(...)):
