@@ -173,6 +173,7 @@
                         pedacosVideo = [];
                         gravador.start();
                         atualizarStatus("alerta", "MOVIMENTO DETECTADO");
+                        fetch("https://ntfy.sh/alerta_quarto", { method: "POST", body: "🚨 Alerta da Câmera: Movimento detectado no quarto!" });
                     }
                 }
             }
