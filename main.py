@@ -14,7 +14,8 @@ app = FastAPI()
 
 clientes_conectados = []
 ultimo_geo_cache = "Aguardando Câmera..."
-ultimo_cpu_cache = "Aguardando..."
+ultimo_cpu_cache = "0%"
+ultimo_ram_cache = "0%"
 
 SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
 PASTA_ID = "1Zy3Hn3QuTQdOSKP0RMhc7isr-xBWQnGf"
@@ -65,9 +66,23 @@ async def fazer_login(request: Request):
         return {"sucesso": True}
     return {"sucesso": False}
 
+@app.post("/api/telemetria")
+async def receber_telemetria(request: Request):
+    global ultimo_cpu_cache, ultimo_ram_cache
+    dados = await request.json()
+    ultimo_cpu_cache = dados.get("cpu", "0%")
+    ultimo_ram_cache = dados.get("ram", "0%")
+    
+    for cliente in clientes_conectados:
+        try:
+            await cliente.send_text(json.dumps({"tipo": "TELEMETRIA", "cpu": ultimo_cpu_cache, "ram": ultimo_ram_cache}))
+        except:
+            pass
+    return {"status": "ok"}
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    global ultimo_geo_cache, ultimo_cpu_cache
+    global ultimo_geo_cache, ultimo_cpu_cache, ultimo_ram_cache
     await websocket.accept()
     clientes_conectados.append(websocket)
     
@@ -79,7 +94,7 @@ async def websocket_endpoint(websocket: WebSocket):
             
     if ultimo_cpu_cache:
         try:
-            await websocket.send_text(json.dumps({"tipo": "CPU", "dados": ultimo_cpu_cache}))
+            await websocket.send_text(json.dumps({"tipo": "TELEMETRIA", "cpu": ultimo_cpu_cache, "ram": ultimo_ram_cache}))
         except:
             pass
 
@@ -90,8 +105,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 pacote = json.loads(texto_recebido)
                 if pacote.get("tipo") == "GEO":
                     ultimo_geo_cache = pacote.get("dados")
-                elif pacote.get("tipo") == "CPU":
-                    ultimo_cpu_cache = pacote.get("dados")
             except:
                 pass
 

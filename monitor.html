@@ -46,7 +46,8 @@
         <div id="painel-principal" class="glass-panel">
             <div class="dashboard">
                 <div class="dash-item">📍 Local: <span id="info-geo">Aguardando...</span></div>
-                <div class="dash-item">💻 CPU: <span id="info-cpu">Aguardando...</span></div>
+                <div class="dash-item">💻 CPU: <span id="info-cpu">0%</span></div>
+                <div class="dash-item">🧠 RAM: <span id="info-ram">0%</span></div>
                 <div class="dash-item">🕒 Hora: <span id="info-hora">--:--:--</span></div>
                 <div class="dash-item">📶 Sinal: <span id="info-sinal">Buscando...</span></div>
             </div>
@@ -119,8 +120,9 @@
                         timeoutAlerta = setTimeout(atualizarStatusSeguro, 5000);
                     } else if (pacote.tipo === 'GEO') {
                         document.getElementById('info-geo').innerText = pacote.dados;
-                    } else if (pacote.tipo === 'CPU') {
-                        document.getElementById('info-cpu').innerText = pacote.dados;
+                    } else if (pacote.tipo === 'TELEMETRIA') {
+                        document.getElementById('info-cpu').innerText = pacote.cpu;
+                        document.getElementById('info-ram').innerText = pacote.ram;
                     }
                 } catch (e) {}
             };
@@ -198,7 +200,7 @@
             }
         }
 
-        prepararMonitor();
+        prepararMicrofone();
     </script>
     <script>
         if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js'); }); }
