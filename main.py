@@ -1,92 +1,65 @@
 import os
+import io
+from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
 import uvicorn
-import webbrowser
-import threading
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse
-from typing import List
-
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+from googleapiclient.http import MediaIoBaseUpload
 
 app = FastAPI()
 
-def fazer_upload_drive(caminho_video):
-    if not os.path.exists('token.json'):
-        print("Erro: token.json não encontrado.")
-        return
+clientes_conectados = []
 
-    try:
-        creds = Credentials.from_authorized_user_file('token.json', ['https://www.googleapis.com/auth/drive.file'])
-        servico = build('drive', 'v3', credentials=creds)
+# Configuração do Google Drive e ID da sua pasta
+SCOPES = ['https://www.googleapis.com/auth/drive.file']
+PASTA_ID = "1Zy3Hn3QuTQdOSKP0RMhc7isr-xBWQnGf"
 
-        nome_arquivo = os.path.basename(caminho_video)
-        metadados_arquivo = {'name': nome_arquivo}
-        midia = MediaFileUpload(caminho_video, mimetype='video/webm', resumable=True)
-
-        servico.files().create(body=metadados_arquivo, media_body=midia, fields='id').execute()
-        print(f"Sucesso absoluto! Vídeo salvo no Google Drive.")
-        
-    except Exception as e:
-        print(f"Falha na comunicação com o Google Drive: {e}")
-
-class GerenciadorConexao:
-    def __init__(self):
-        self.conexoes_ativas: List[WebSocket] = []
-
-    async def conectar(self, websocket: WebSocket):
-        await websocket.accept()
-        self.conexoes_ativas.append(websocket)
-
-    def desconectar(self, websocket: WebSocket):
-        if websocket in self.conexoes_ativas:
-            self.conexoes_ativas.remove(websocket)
-
-    async def enviar_mensagem(self, mensagem: str, remetente: WebSocket):
-        for conexao in self.conexoes_ativas:
-            if conexao != remetente:
-                try:
-                    await conexao.send_text(mensagem)
-                except:
-                    pass
-
-gerenciador = GerenciadorConexao()
-
-@app.get("/")
-async def raiz():
-    return RedirectResponse(url="/camera")
-
-@app.get("/camera")
-async def ler_camera():
-    caminho = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'camera.html')
-    with open(caminho, "r", encoding="utf-8") as arquivo:
-        return HTMLResponse(content=arquivo.read(), status_code=200)
-
-@app.get("/monitor")
-async def ler_monitor():
-    caminho = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'monitor.html')
-    with open(caminho, "r", encoding="utf-8") as arquivo:
-        return HTMLResponse(content=arquivo.read(), status_code=200)
+def obter_servico_drive():
+    creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    return build('drive', 'v3', credentials=creds)
 
 @app.post("/alerta_movimento")
-async def receber_alerta(video: UploadFile = File(...)):
-    caminho_local = f"alerta_{video.filename}"
-    with open(caminho_local, "wb") as buffer:
-        buffer.write(await video.read())
+async def receber_video(video: UploadFile = File(...)):
+    try:
+        conteudo = await video.read()
+        servico = obter_servico_drive()
         
-    threading.Thread(target=fazer_upload_drive, args=(caminho_local,)).start()
-    return {"mensagem": "Recebido"}
+        # Aqui o Python recebe a instrução exata de onde salvar o arquivo
+        file_metadata = {
+            'name': video.filename,
+            'parents': [PASTA_ID]
+        }
+        
+        media = MediaIoBaseUpload(io.BytesIO(conteudo), mimetype=video.content_type, resumable=True)
+        arquivo = servico.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        
+        return {"mensagem": "Vídeo salvo com sucesso na pasta", "id": arquivo.get("id")}
+    except Exception as e:
+        return {"erro": str(e)}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await gerenciador.conectar(websocket)
+    await websocket.accept()
+    clientes_conectados.append(websocket)
     try:
         while True:
             dados = await websocket.receive_text()
-            await gerenciador.enviar_mensagem(dados, websocket)
+            for cliente in clientes_conectados:
+                if cliente != websocket:
+                    await cliente.send_text(dados)
     except WebSocketDisconnect:
-        gerenciador.desconectar(websocket)
+        clientes_conectados.remove(websocket)
+
+@app.get("/camera")
+async def renderizar_camera():
+    with open("camera.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+@app.get("/monitor")
+async def renderizar_monitor():
+    with open("monitor.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 if __name__ == "__main__":
     porta = int(os.environ.get("PORT", 8000))
