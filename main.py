@@ -69,11 +69,18 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             dados = await websocket.receive_text()
-            for cliente in clientes_conectados:
+            for cliente in clientes_conectados.copy():
                 if cliente != websocket:
-                    await cliente.send_text(dados)
-    except WebSocketDisconnect:
-        clientes_conectados.remove(websocket)
+                    try:
+                        await cliente.send_text(dados)
+                    except Exception:
+                        if cliente in clientes_conectados:
+                            clientes_conectados.remove(cliente)
+    except Exception:
+        pass
+    finally:
+        if websocket in clientes_conectados:
+            clientes_conectados.remove(websocket)
 
 @app.get("/")
 async def renderizar_index():

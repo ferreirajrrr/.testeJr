@@ -59,6 +59,7 @@
         let gravando = false;
         let tempoUltimoMovimento = 0;
         let modeloIA = null;
+        let loopTransmissao; 
         const alvos = ['person', 'dog', 'cat'];
 
         function atualizarStatus(tipo, mensagem) {
@@ -102,7 +103,8 @@
 
             ws.onopen = () => {
                 enviarLocalizacao();
-                setInterval(() => {
+                if(loopTransmissao) clearInterval(loopTransmissao);
+                loopTransmissao = setInterval(() => {
                     if (ws.readyState === WebSocket.OPEN && video.readyState >= 2) {
                         ctxStream.drawImage(video, 0, 0, canvasStream.width, canvasStream.height);
                         const foto = canvasStream.toDataURL('image/jpeg', 0.4); 
@@ -119,6 +121,11 @@
                         som.play();
                     }
                 } catch(e) {}
+            };
+
+            ws.onclose = () => {
+                if(loopTransmissao) clearInterval(loopTransmissao);
+                setTimeout(conectarWebsocket, 3000);
             };
         }
 
