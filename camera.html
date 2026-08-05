@@ -8,7 +8,6 @@
     <meta name="theme-color" content="#000000">
     <link rel="apple-touch-icon" href="/icone.png">
     
-    <!-- Bibliotecas da Inteligência Artificial -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
 
@@ -163,6 +162,7 @@
                     pedacosVideo = [];
                     gravador.start();
                     atualizarStatus("alerta", `GRAVANDO: ${nomeAmeaca} DETECTADO`);
+                    fetch("https://ntfy.sh/alerta_quarto", { method: "POST", body: "IA da Babá Eletrônica: " + nomeAmeaca + " detectado no quarto!" });
                 }
             }
 
