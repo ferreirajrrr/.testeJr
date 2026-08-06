@@ -29,10 +29,10 @@
     </style>
 </head>
 <body>
-    <div class="glass-panel">
+    <div id="interface-camera" class="glass-panel">
         <h2>
             <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-            Câmera Inteligente
+            <span id="label-ambiente">Iniciando...</span>
         </h2>
         <video id="video-local" autoplay playsinline muted></video>
         <canvas id="canvas-ia"></canvas>
@@ -42,12 +42,19 @@
     </div>
 
     <script>
+        // Sistema de Auto-Identificação da Câmera
+        let nomeDaCamera = localStorage.getItem('camBabaID');
+        if (!nomeDaCamera) {
+            nomeDaCamera = "Câmera " + Math.floor(1000 + Math.random() * 9000);
+            localStorage.setItem('camBabaID', nomeDaCamera);
+        }
+
         const video = document.getElementById('video-local');
         const canvasIA = document.getElementById('canvas-ia');
         const ctxIA = canvasIA.getContext('2d');
         const statusVisual = document.getElementById('status-visual');
         const statusTexto = document.getElementById('status-texto');
-
+        
         const canvasStream = document.createElement('canvas');
         const ctxStream = canvasStream.getContext('2d');
         canvasStream.width = 320;
@@ -61,6 +68,12 @@
         let modeloIA = null;
         let loopTransmissao; 
         const alvos = ['person', 'dog', 'cat'];
+
+        window.onload = () => {
+            document.getElementById('label-ambiente').innerText = nomeDaCamera;
+            conectarWebsocket();
+            iniciarCamera();
+        };
 
         function atualizarStatus(tipo, mensagem) {
             statusVisual.className = "status-badge " + tipo;
@@ -80,7 +93,7 @@
         function enviarInformacoesAmbiente() {
             if (navigator.hardwareConcurrency && ws && ws.readyState === WebSocket.OPEN) {
                 const nucleosCPU = navigator.hardwareConcurrency + " Núcleos";
-                ws.send(JSON.stringify({ tipo: 'CPU', dados: nucleosCPU }));
+                ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'CPU', dados: nucleosCPU }));
             }
 
             if ("geolocation" in navigator) {
@@ -98,12 +111,12 @@
                         const temperatura = dadosTemp.current ? dadosTemp.current.temperature_2m + "°C" : "";
 
                         if (ws && ws.readyState === WebSocket.OPEN) {
-                            ws.send(JSON.stringify({ tipo: 'GEO', dados: cidade + " - " + estado + " (" + temperatura + ")" }));
+                            ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'GEO', dados: cidade + " - " + estado + " (" + temperatura + ")" }));
                         }
                     } catch(e) {}
                 }, () => {
                     if (ws && ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({ tipo: 'GEO', dados: "GPS Bloqueado" }));
+                        ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'GEO', dados: "GPS Bloqueado" }));
                     }
                 });
             }
@@ -120,7 +133,7 @@
                     if (ws.readyState === WebSocket.OPEN && video.readyState >= 2) {
                         ctxStream.drawImage(video, 0, 0, canvasStream.width, canvasStream.height);
                         const foto = canvasStream.toDataURL('image/jpeg', 0.4); 
-                        ws.send(JSON.stringify({ tipo: 'FRAME', dados: foto }));
+                        ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'FRAME', dados: foto }));
                     }
                 }, 250);
             };
@@ -128,7 +141,7 @@
             ws.onmessage = (evento) => {
                 try {
                     const pacote = JSON.parse(evento.data);
-                    if (pacote.tipo === 'AUDIO') {
+                    if (pacote.tipo === 'AUDIO' && (pacote.alvo === nomeDaCamera || pacote.alvo === 'TODOS')) {
                         const som = new Audio(pacote.dados);
                         som.play();
                     }
@@ -158,9 +171,12 @@
                     const blob = new Blob(pedacosVideo, { type: 'video/webm' });
                     pedacosVideo = [];
                     const pacote = new FormData();
-                    pacote.append("video", blob, "alerta_ia_" + Date.now() + ".webm");
+                    pacote.append("video", blob, "alerta_ia_" + nomeDaCamera + "_" + Date.now() + ".webm");
                     fetch("/alerta_movimento", { method: "POST", body: pacote });
                 };
+
+                // Envia push notificando que a câmera entrou online
+                fetch("https://ntfy.sh/baba_alertas", { method: "POST", body: `Sistema Online: ${nomeDaCamera} conectada com sucesso.` });
 
                 carregarInteligencia();
             } catch (erro) {
@@ -195,14 +211,15 @@
             if (ameacaDetectada) {
                 tempoUltimoMovimento = Date.now();
                 if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({ tipo: 'ALERTA', dados: `IA DETECTOU: ${nomeAmeaca}` }));
+                    ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'ALERTA', dados: `IA DETECTOU: ${nomeAmeaca}` }));
                 }
                 if (!gravando && gravador.state === "inactive") {
                     gravando = true;
                     pedacosVideo = [];
                     gravador.start();
                     atualizarStatus("alerta", `GRAVANDO: ${nomeAmeaca} DETECTADO`);
-                    fetch("https://ntfy.sh/alerta_quarto", { method: "POST", body: "IA da Babá Eletrônica: " + nomeAmeaca + " detectado no quarto!" });
+                    // Alerta genérico atualizado para o novo canal
+                    fetch("https://ntfy.sh/baba_alertas", { method: "POST", body: `Alerta de Segurança: ${nomeAmeaca} detectado na ${nomeDaCamera}!` });
                 }
             }
 
@@ -215,9 +232,6 @@
 
             requestAnimationFrame(processarVisaoComputacional);
         }
-
-        conectarWebsocket();
-        iniciarCamera();
     </script>
     <script>
         if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js'); }); }

@@ -13,9 +13,10 @@ from googleapiclient.http import MediaIoBaseUpload
 app = FastAPI()
 
 clientes_conectados = []
-ultimo_geo_cache = "Aguardando Câmera..."
-ultimo_cpu_cache = "0%"
-ultimo_ram_cache = "0%"
+
+# Caches independentes para múltiplas câmeras
+cache_geo = {}
+cache_telemetria = {}
 
 SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
 PASTA_ID = "1Zy3Hn3QuTQdOSKP0RMhc7isr-xBWQnGf"
@@ -37,10 +38,8 @@ async def reciclar_videos_antigos():
             
             for arquivo in arquivos:
                 servico.files().delete(fileId=arquivo['id']).execute()
-                
         except Exception as e:
             print("Erro na reciclagem de videos:", str(e))
-            
         await asyncio.sleep(3600)
 
 @app.on_event("startup")
@@ -68,43 +67,44 @@ async def fazer_login(request: Request):
 
 @app.post("/api/telemetria")
 async def receber_telemetria(request: Request):
-    global ultimo_cpu_cache, ultimo_ram_cache
+    global cache_telemetria
     dados = await request.json()
-    ultimo_cpu_cache = dados.get("cpu", "0%")
-    ultimo_ram_cache = dados.get("ram", "0%")
+    cam_id = dados.get("id", "Desconhecida")
+    cpu = dados.get("cpu", "0%")
+    ram = dados.get("ram", "0%")
+    
+    cache_telemetria[cam_id] = {"cpu": cpu, "ram": ram}
     
     for cliente in clientes_conectados:
         try:
-            await cliente.send_text(json.dumps({"tipo": "TELEMETRIA", "cpu": ultimo_cpu_cache, "ram": ultimo_ram_cache}))
+            await cliente.send_text(json.dumps({"id": cam_id, "tipo": "TELEMETRIA", "cpu": cpu, "ram": ram}))
         except:
             pass
     return {"status": "ok"}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    global ultimo_geo_cache, ultimo_cpu_cache, ultimo_ram_cache
+    global cache_geo, cache_telemetria
     await websocket.accept()
     clientes_conectados.append(websocket)
     
-    if ultimo_geo_cache:
-        try:
-            await websocket.send_text(json.dumps({"tipo": "GEO", "dados": ultimo_geo_cache}))
-        except:
-            pass
+    # Envia o cache de todas as câmeras para o novo monitor conectado
+    for cam_id, geo in cache_geo.items():
+        try: await websocket.send_text(json.dumps({"id": cam_id, "tipo": "GEO", "dados": geo}))
+        except: pass
             
-    if ultimo_cpu_cache:
-        try:
-            await websocket.send_text(json.dumps({"tipo": "TELEMETRIA", "cpu": ultimo_cpu_cache, "ram": ultimo_ram_cache}))
-        except:
-            pass
+    for cam_id, tel in cache_telemetria.items():
+        try: await websocket.send_text(json.dumps({"id": cam_id, "tipo": "TELEMETRIA", "cpu": tel["cpu"], "ram": tel["ram"]}))
+        except: pass
 
     try:
         while True:
             texto_recebido = await websocket.receive_text()
             try:
                 pacote = json.loads(texto_recebido)
+                cam_id = pacote.get("id", "Desconhecida")
                 if pacote.get("tipo") == "GEO":
-                    ultimo_geo_cache = pacote.get("dados")
+                    cache_geo[cam_id] = pacote.get("dados")
             except:
                 pass
 
@@ -123,30 +123,24 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.get("/")
 async def renderizar_index():
-    with open("index.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    with open("index.html", "r", encoding="utf-8") as f: return HTMLResponse(content=f.read())
 
 @app.get("/camera")
 async def renderizar_camera():
-    with open("camera.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    with open("camera.html", "r", encoding="utf-8") as f: return HTMLResponse(content=f.read())
 
 @app.get("/monitor")
 async def renderizar_monitor():
-    with open("monitor.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    with open("monitor.html", "r", encoding="utf-8") as f: return HTMLResponse(content=f.read())
 
 @app.get("/manifest.json")
-async def entregar_manifest():
-    return FileResponse("manifest.json")
+async def entregar_manifest(): return FileResponse("manifest.json")
 
 @app.get("/sw.js")
-async def entregar_sw():
-    return FileResponse("sw.js")
+async def entregar_sw(): return FileResponse("sw.js")
 
 @app.get("/icone.png")
-async def entregar_icone():
-    return FileResponse("icone.png")
+async def entregar_icone(): return FileResponse("icone.png")
 
 if __name__ == "__main__":
     porta = int(os.environ.get("PORT", 8000))

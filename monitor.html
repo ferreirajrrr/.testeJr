@@ -8,61 +8,68 @@
     <meta name="theme-color" content="#000000">
     <link rel="apple-touch-icon" href="/icone.png">
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", Roboto, sans-serif; background-color: #000000; background-image: radial-gradient(circle at 50% 0%, #1a1a1c 0%, #000000 80%); color: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; transition: background 0.8s ease; }
-        body.alerta-bg { background-image: radial-gradient(circle at 50% 0%, #3a0a0a 0%, #000000 80%); }
-        .glass-panel { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); text-align: center; width: 100%; max-width: 600px; box-sizing: border-box; transition: border-color 0.5s ease; }
-        .glass-panel.alerta-border { border-color: rgba(255, 69, 58, 0.4); }
-        #tela-login { display: block; }
-        #tela-monitor { display: none; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", Roboto, sans-serif; background-color: #000000; background-image: radial-gradient(circle at 50% 0%, #1a1a1c 0%, #000000 80%); color: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; transition: background 0.8s ease; }
+        .glass-panel { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); text-align: center; width: 100%; box-sizing: border-box; transition: border-color 0.5s ease; position: relative; overflow: hidden; }
+        .glass-panel.alerta-border { border-color: rgba(255, 69, 58, 0.4); background: rgba(255, 69, 58, 0.05); }
+        
+        #tela-login { max-width: 400px; margin: auto; margin-top: 10vh; }
+        #tela-monitor { display: none; width: 100%; max-width: 1400px; }
         input[type="password"] { width: 100%; padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff; font-size: 16px; margin-bottom: 15px; box-sizing: border-box; text-align: center; }
         .btn-login { width: 100%; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 600; background: #0a84ff; color: #fff; border: none; cursor: pointer; }
         #erro-login { color: #ff453a; font-size: 14px; margin-top: 10px; display: none; }
-        .dashboard { display: flex; flex-wrap: wrap; justify-content: space-between; font-size: 12px; color: #a1a1a6; margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 12px; }
-        .dash-item { margin: 5px; display: flex; align-items: center; gap: 5px; }
-        img { width: 100%; border-radius: 16px; background: #0a0a0a; margin-bottom: 20px; min-height: 200px; object-fit: cover; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
-        .controles-audio { display: flex; gap: 10px; margin-top: 20px; justify-content: center; }
-        .btn-audio { padding: 12px 20px; border-radius: 20px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.1); color: #fff; user-select: none; -webkit-user-select: none; }
-        .btn-audio:active { opacity: 0.8; }
+        
+        /* Layout Dinâmico das Câmeras */
+        #aviso-vazio { display: block; text-align: center; margin-top: 10vh; color: #a1a1a6; }
+        #aviso-vazio h3 { margin-bottom: 5px; color: #fff; }
+        
+        #grid-cameras { display: grid; gap: 20px; width: 100%; transition: all 0.3s ease; }
+        .layout-unico { grid-template-columns: 1fr; max-width: 700px; margin: 0 auto; }
+        .layout-multiplo { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+        
+        .cam-title { font-weight: 600; font-size: 18px; margin: 0 0 15px 0; display: flex; align-items: center; justify-content: center; gap: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .cam-title svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        
+        .dashboard { display: flex; flex-wrap: wrap; justify-content: center; font-size: 11px; color: #a1a1a6; margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 12px; gap: 10px; }
+        .dash-item { display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; }
+        
+        img { width: 100%; border-radius: 16px; background: #0a0a0a; margin-bottom: 15px; min-height: 200px; object-fit: cover; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
+        
+        .controles-audio { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 15px; }
+        .btn-audio { width: 100%; padding: 12px 20px; border-radius: 20px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; background: rgba(255, 255, 255, 0.1); color: #fff; user-select: none; -webkit-user-select: none; transition: transform 0.1s; }
+        .btn-audio:active { transform: scale(0.96); }
         .btn-ativo { background: #ff453a !important; color: white !important; }
-        .modulador { width: 150px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden; margin: 15px auto; }
-        .barra-som { height: 100%; background: #0a84ff; width: 0%; transition: width 0.05s; }
-        .status-badge { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: 30px; font-size: 13px; font-weight: 600; letter-spacing: 1px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); }
+        
+        .status-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 30px; font-size: 11px; font-weight: 600; letter-spacing: 1px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 10px; }
         .dot { width: 8px; height: 8px; border-radius: 50%; }
         .seguro .dot { background: #32d74b; box-shadow: 0 0 10px #32d74b; }
-        .alerta { background: rgba(255, 69, 58, 0.1); border-color: rgba(255, 69, 58, 0.3); color: #ff453a; }
-        .alerta .dot { background: #ff453a; box-shadow: 0 0 10px #ff453a; animation: pulse 1s infinite; }
+        .alerta { background: rgba(255, 69, 58, 0.1) !important; border-color: rgba(255, 69, 58, 0.3) !important; color: #ff453a !important; }
+        .alerta .dot { background: #ff453a !important; box-shadow: 0 0 10px #ff453a !important; animation: pulse 1s infinite; }
+        
+        /* Gráfico de Voz Global */
+        #modulador-global { display: none; width: 100%; max-width: 400px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin: 0 auto 20px auto; }
+        #barra-som-global { height: 100%; background: #32d74b; width: 0%; transition: width 0.05s; }
+
         @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
     <div id="tela-login" class="glass-panel">
         <h2 style="margin-bottom: 20px;">Acesso Restrito</h2>
-        <input type="password" id="senha" placeholder="Digite a senha administrativa">
+        <input type="password" id="senha" placeholder="Senha administrativa">
         <button class="btn-login" onclick="tentarLogin()">Autenticar</button>
         <div id="erro-login">Senha incorreta.</div>
     </div>
 
     <div id="tela-monitor">
-        <div id="painel-principal" class="glass-panel">
-            <div class="dashboard">
-                <div class="dash-item">📍 Local: <span id="info-geo">Aguardando...</span></div>
-                <div class="dash-item">💻 CPU: <span id="info-cpu">0%</span></div>
-                <div class="dash-item">🧠 RAM: <span id="info-ram">0%</span></div>
-                <div class="dash-item">🕒 Hora: <span id="info-hora">--:--:--</span></div>
-                <div class="dash-item">📶 Sinal: <span id="info-sinal">Buscando...</span></div>
-            </div>
-            
-            <img id="video-ao-vivo" alt="Aguardando transmissão..." />
-            
-            <div id="status-visual" class="status-badge alerta">
-                <div class="dot"></div> <span id="status-texto">CONECTANDO...</span>
-            </div>
-
-            <div class="modulador"><div class="barra-som" id="barra-som"></div></div>
-
-            <div class="controles-audio">
-                <button class="btn-audio" id="btn-call" style="background: #0a84ff;">Segure para Falar</button>
-            </div>
+        <div id="modulador-global"><div id="barra-som-global"></div></div>
+        
+        <div id="aviso-vazio">
+            <h3>Nenhuma câmera conectada</h3>
+            <p>Inicie a transmissão em algum dispositivo para visualizar.</p>
+        </div>
+        
+        <div id="grid-cameras">
+            <!-- As câmeras entram e saem daqui dinamicamente -->
         </div>
     </div>
 
@@ -78,90 +85,151 @@
             } else { document.getElementById('erro-login').style.display = 'block'; }
         }
 
-        setInterval(() => { document.getElementById('info-hora').innerText = new Date().toLocaleTimeString(); }, 1000);
-        if (navigator.connection) { document.getElementById('info-sinal').innerText = navigator.connection.effectiveType.toUpperCase(); } else { document.getElementById('info-sinal').innerText = "Estável"; }
+        let wsGlobal;
+        let gravadorAudio = null;
+        let alvoDeVoz = 'TODOS';
+        const timeoutsConexao = {};
+        const timeoutsAlerta = {};
 
-        const painel = document.getElementById('painel-principal');
-        const statusVisual = document.getElementById('status-visual');
-        const statusTexto = document.getElementById('status-texto');
-        const imagemAoVivo = document.getElementById('video-ao-vivo');
-        let timeoutAlerta, timeoutConexao, wsGlobal;
+        function formatarId(str) { return str.replace(/[^a-zA-Z0-9]/g, '_'); }
 
-        function atualizarStatusSeguro() {
-            statusVisual.className = "status-badge seguro";
-            statusTexto.innerText = "SINAL ESTÁVEL";
-            document.body.classList.remove("alerta-bg");
-            painel.classList.remove("alerta-border");
+        function recalcularLayout() {
+            const grid = document.getElementById('grid-cameras');
+            const aviso = document.getElementById('aviso-vazio');
+            const qtdCameras = document.querySelectorAll('.card-camera').length;
+
+            if (qtdCameras === 0) {
+                aviso.style.display = 'block';
+                grid.className = '';
+            } else if (qtdCameras === 1) {
+                aviso.style.display = 'none';
+                grid.className = 'layout-unico';
+            } else {
+                aviso.style.display = 'none';
+                grid.className = 'layout-multiplo';
+            }
+        }
+
+        function garantirCardCamera(idOriginal) {
+            const safeId = formatarId(idOriginal);
+            let card = document.getElementById('card-' + safeId);
+            
+            if (!card) {
+                const grid = document.getElementById('grid-cameras');
+                card = document.createElement('div');
+                card.className = 'glass-panel card-camera';
+                card.id = 'card-' + safeId;
+                card.innerHTML = `
+                    <h2 class="cam-title">
+                        <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                        ${idOriginal}
+                    </h2>
+                    <div class="dashboard">
+                        <div class="dash-item">📍 <span id="geo-${safeId}">Aguardando...</span></div>
+                        <div class="dash-item">💻 <span id="cpu-${safeId}">0%</span> | 🧠 <span id="ram-${safeId}">0%</span></div>
+                    </div>
+                    <img id="vid-${safeId}" alt="Aguardando transmissão..." />
+                    <div id="badge-${safeId}" class="status-badge alerta">
+                        <div class="dot"></div> <span id="status-${safeId}">CONECTANDO...</span>
+                    </div>
+                    <div class="controles-audio">
+                        <button class="btn-audio" id="btn-call-${safeId}" style="background: #0a84ff;">Falar com ${idOriginal}</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+                configurarBotaoVoz(safeId, idOriginal);
+                recalcularLayout();
+            }
+            return safeId;
+        }
+
+        function marcarSeguro(safeId) {
+            const card = document.getElementById('card-' + safeId);
+            const badge = document.getElementById('badge-' + safeId);
+            const txt = document.getElementById('status-' + safeId);
+            if(card) {
+                card.classList.remove('alerta-border');
+                badge.className = 'status-badge seguro';
+                txt.innerText = 'SINAL ESTÁVEL';
+            }
         }
 
         function iniciarMonitor() {
+            recalcularLayout();
             const protocolo = window.location.protocol === "https:" ? "wss:" : "ws:";
             wsGlobal = new WebSocket(protocolo + "//" + window.location.host + "/ws");
 
             wsGlobal.onmessage = (evento) => {
                 try {
                     const pacote = JSON.parse(evento.data);
+                    if (!pacote.id) return;
+                    
+                    const safeId = garantirCardCamera(pacote.id);
+
                     if (pacote.tipo === 'FRAME') {
-                        imagemAoVivo.src = pacote.dados;
-                        clearTimeout(timeoutConexao);
-                        timeoutConexao = setTimeout(() => {
-                            if(!statusVisual.classList.contains("alerta")) {
-                                statusVisual.className = "status-badge alerta";
-                                statusTexto.innerText = "SEM SINAL DA CÂMERA";
+                        document.getElementById('vid-' + safeId).src = pacote.dados;
+                        
+                        // Sistema de Auto-Remoção
+                        clearTimeout(timeoutsConexao[safeId]);
+                        timeoutsConexao[safeId] = setTimeout(() => {
+                            const cardFalho = document.getElementById('card-' + safeId);
+                            if(cardFalho) {
+                                cardFalho.remove();
+                                recalcularLayout();
                             }
-                        }, 2000);
-                        if(statusTexto.innerText === "CONECTANDO...") atualizarStatusSeguro();
-                    } else if (pacote.tipo === 'ALERTA') {
-                        statusVisual.className = "status-badge alerta";
-                        statusTexto.innerText = pacote.dados.toUpperCase();
-                        document.body.classList.add("alerta-bg"); 
-                        painel.classList.add("alerta-border");
-                        clearTimeout(timeoutAlerta);
-                        timeoutAlerta = setTimeout(atualizarStatusSeguro, 5000);
-                    } else if (pacote.tipo === 'GEO') {
-                        document.getElementById('info-geo').innerText = pacote.dados;
-                    } else if (pacote.tipo === 'TELEMETRIA') {
-                        document.getElementById('info-cpu').innerText = pacote.cpu;
-                        document.getElementById('info-ram').innerText = pacote.ram;
+                        }, 5000); // Se a câmera não mandar vídeo por 5 segundos, ela some do painel
+
+                        if(document.getElementById('status-' + safeId).innerText === "CONECTANDO...") {
+                            marcarSeguro(safeId);
+                        }
+                    } 
+                    else if (pacote.tipo === 'ALERTA') {
+                        const card = document.getElementById('card-' + safeId);
+                        const badge = document.getElementById('badge-' + safeId);
+                        if(card) {
+                            card.classList.add('alerta-border');
+                            badge.className = 'status-badge alerta';
+                            document.getElementById('status-' + safeId).innerText = pacote.dados.toUpperCase();
+                            
+                            clearTimeout(timeoutsAlerta[safeId]);
+                            timeoutsAlerta[safeId] = setTimeout(() => { marcarSeguro(safeId); }, 5000);
+                        }
+                    } 
+                    else if (pacote.tipo === 'GEO') {
+                        document.getElementById('geo-' + safeId).innerText = pacote.dados;
+                    } 
+                    else if (pacote.tipo === 'TELEMETRIA') {
+                        document.getElementById('cpu-' + safeId).innerText = pacote.cpu;
+                        document.getElementById('ram-' + safeId).innerText = pacote.ram;
                     }
                 } catch (e) {}
             };
-            wsGlobal.onclose = () => {
-                statusVisual.className = "status-badge alerta";
-                statusTexto.innerText = "SERVIDOR DESCONECTADO";
-                setTimeout(iniciarMonitor, 3000);
-            };
+            
+            wsGlobal.onclose = () => { setTimeout(iniciarMonitor, 3000); };
+            prepararMicrofoneMestre();
         }
 
-        const btnCall = document.getElementById('btn-call');
-        const barraSom = document.getElementById('barra-som');
-        let gravadorAudio;
-        let contextoAudio;
-
-        async function prepararMicrofone() {
+        async function prepararMicrofoneMestre() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 gravadorAudio = new MediaRecorder(stream);
-                
-                contextoAudio = new (window.AudioContext || window.webkitAudioContext)();
+                const contextoAudio = new (window.AudioContext || window.webkitAudioContext)();
                 const fonte = contextoAudio.createMediaStreamSource(stream);
                 const analisador = contextoAudio.createAnalyser();
                 fonte.connect(analisador);
                 analisador.fftSize = 256;
                 const bufferLength = analisador.frequencyBinCount;
                 const dadosFrequencia = new Uint8Array(bufferLength);
+                const barraSom = document.getElementById('barra-som-global');
 
                 function atualizarGrafico() {
                     if (gravadorAudio.state === 'recording') {
                         analisador.getByteFrequencyData(dadosFrequencia);
                         let soma = 0;
                         for(let i = 0; i < bufferLength; i++) { soma += dadosFrequencia[i]; }
-                        let media = soma / bufferLength;
-                        barraSom.style.width = (media * 1.5) + '%';
+                        barraSom.style.width = ((soma / bufferLength) * 1.5) + '%';
                         requestAnimationFrame(atualizarGrafico);
-                    } else {
-                        barraSom.style.width = '0%';
-                    }
+                    } else { barraSom.style.width = '0%'; }
                 }
 
                 gravadorAudio.ondataavailable = async (e) => {
@@ -169,38 +237,49 @@
                         const leitor = new FileReader();
                         leitor.readAsDataURL(e.data);
                         leitor.onloadend = () => {
-                            wsGlobal.send(JSON.stringify({ tipo: 'AUDIO', dados: leitor.result }));
+                            wsGlobal.send(JSON.stringify({ tipo: 'AUDIO', alvo: alvoDeVoz, dados: leitor.result }));
                         };
                     }
                 };
 
-                btnCall.addEventListener('mousedown', () => { 
-                    if(gravadorAudio.state === 'inactive') {
-                        gravadorAudio.start(500);
-                        btnCall.classList.add('btn-ativo');
-                        btnCall.innerText = "Gravando Voz...";
-                        atualizarGrafico();
-                    }
-                });
-                
-                btnCall.addEventListener('mouseup', () => {
-                    if(gravadorAudio.state === 'recording') {
-                        gravadorAudio.stop();
-                        btnCall.classList.remove('btn-ativo');
-                        btnCall.innerText = "Segure para Falar";
-                    }
-                });
-
-                btnCall.addEventListener('touchstart', (e) => { e.preventDefault(); btnCall.dispatchEvent(new Event('mousedown')); });
-                btnCall.addEventListener('touchend', (e) => { e.preventDefault(); btnCall.dispatchEvent(new Event('mouseup')); });
-
+                window.atualizarGraficoGlobal = atualizarGrafico;
             } catch (err) {
-                btnCall.innerText = "Microfone Bloqueado";
-                btnCall.disabled = true;
+                console.log("Microfone Bloqueado");
             }
         }
 
-        prepararMicrofone();
+        function configurarBotaoVoz(safeId, idOriginal) {
+            const btn = document.getElementById('btn-call-' + safeId);
+            const modulador = document.getElementById('modulador-global');
+
+            const iniciarGravação = (e) => {
+                e.preventDefault();
+                if(gravadorAudio && gravadorAudio.state === 'inactive') {
+                    alvoDeVoz = idOriginal;
+                    gravadorAudio.start(500);
+                    btn.classList.add('btn-ativo');
+                    btn.innerText = "Gravando Voz...";
+                    modulador.style.display = 'block';
+                    if(window.atualizarGraficoGlobal) window.atualizarGraficoGlobal();
+                }
+            };
+
+            const pararGravação = (e) => {
+                e.preventDefault();
+                if(gravadorAudio && gravadorAudio.state === 'recording') {
+                    gravadorAudio.stop();
+                    btn.classList.remove('btn-ativo');
+                    btn.innerText = "Falar com " + idOriginal;
+                    modulador.style.display = 'none';
+                }
+            };
+
+            btn.addEventListener('mousedown', iniciarGravação);
+            btn.addEventListener('mouseup', pararGravação);
+            btn.addEventListener('mouseleave', pararGravação);
+            btn.addEventListener('touchstart', iniciarGravação);
+            btn.addEventListener('touchend', pararGravação);
+        }
     </script>
     <script>
         if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js'); }); }
