@@ -3,7 +3,7 @@ import psutil
 import requests
 
 URL = "https://testejr.onrender.com/api/telemetria"
-# Copie e cole aqui o nome exato que foi gerado na tela da sua câmera (ex: "Câmera 8592")
+# Copie e cole aqui o nome exato que foi gerado na tela da sua câmera
 NOME_AMBIENTE = "Câmera 1234" 
 
 while True:

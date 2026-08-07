@@ -14,7 +14,6 @@ app = FastAPI()
 
 clientes_conectados = []
 
-# Caches independentes para múltiplas câmeras
 cache_geo = {}
 cache_telemetria = {}
 
@@ -88,7 +87,6 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     clientes_conectados.append(websocket)
     
-    # Envia o cache de todas as câmeras para o novo monitor conectado
     for cam_id, geo in cache_geo.items():
         try: await websocket.send_text(json.dumps({"id": cam_id, "tipo": "GEO", "dados": geo}))
         except: pass

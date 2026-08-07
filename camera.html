@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Câmera da Babá</title>
+    <title>Câmera da Babá (IP SriHome)</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#000000">
-    <link rel="apple-touch-icon" href="/icone.png">
     
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
@@ -14,27 +13,23 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", Roboto, sans-serif; background-color: #000000; background-image: radial-gradient(circle at 50% 0%, #1a1a1c 0%, #000000 80%); color: #ffffff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; box-sizing: border-box; }
         .glass-panel { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); text-align: center; max-width: 600px; width: 100%; box-sizing: border-box; position: relative; }
-        h2 { font-weight: 600; font-size: 20px; margin: 0 0 20px 0; display: flex; align-items: center; justify-content: center; gap: 10px; letter-spacing: 0.5px; }
-        svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-        video { width: 100%; border-radius: 16px; background: #0a0a0a; margin-bottom: 20px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
-        .status-badge { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: 30px; font-size: 13px; font-weight: 600; letter-spacing: 1px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); }
+        h2 { font-weight: 600; font-size: 20px; margin: 0 0 20px 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        img#video-local { width: 100%; border-radius: 16px; background: #0a0a0a; margin-bottom: 20px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
+        .status-badge { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: 30px; font-size: 13px; font-weight: 600; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); }
         .dot { width: 8px; height: 8px; border-radius: 50%; }
         .seguro .dot { background: #32d74b; box-shadow: 0 0 10px #32d74b; }
         .alerta { background: rgba(255, 69, 58, 0.1); border-color: rgba(255, 69, 58, 0.3); color: #ff453a; }
         .alerta .dot { background: #ff453a; box-shadow: 0 0 10px #ff453a; animation: pulse 1s infinite; }
         .ia-loading { color: #0a84ff; border-color: rgba(10, 132, 255, 0.3); background: rgba(10, 132, 255, 0.1); }
-        .ia-loading .dot { background: #0a84ff; box-shadow: 0 0 10px #0a84ff; }
+        .ia-loading .dot { background: #0a84ff; }
         #canvas-ia { position: absolute; top: 72px; left: 24px; width: calc(100% - 48px); height: auto; z-index: 10; pointer-events: none; border-radius: 16px; }
         @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
     <div id="interface-camera" class="glass-panel">
-        <h2>
-            <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-            <span id="label-ambiente">Iniciando...</span>
-        </h2>
-        <video id="video-local" autoplay playsinline muted></video>
+        <h2><span id="label-ambiente">Iniciando...</span></h2>
+        <img id="video-local" src="http://127.0.0.1:5000/stream" crossorigin="anonymous" alt="Conectando à Câmera IP...">
         <canvas id="canvas-ia"></canvas>
         <div id="status-visual" class="status-badge ia-loading">
             <div class="dot"></div> <span id="status-texto">CARREGANDO IA NEURAL...</span>
@@ -42,14 +37,13 @@
     </div>
 
     <script>
-        // Sistema de Auto-Identificação da Câmera
         let nomeDaCamera = localStorage.getItem('camBabaID');
         if (!nomeDaCamera) {
-            nomeDaCamera = "Câmera " + Math.floor(1000 + Math.random() * 9000);
+            nomeDaCamera = "SriHome " + Math.floor(1000 + Math.random() * 9000);
             localStorage.setItem('camBabaID', nomeDaCamera);
         }
 
-        const video = document.getElementById('video-local');
+        const videoImg = document.getElementById('video-local');
         const canvasIA = document.getElementById('canvas-ia');
         const ctxIA = canvasIA.getContext('2d');
         const statusVisual = document.getElementById('status-visual');
@@ -57,8 +51,8 @@
         
         const canvasStream = document.createElement('canvas');
         const ctxStream = canvasStream.getContext('2d');
-        canvasStream.width = 320;
-        canvasStream.height = 240;
+        canvasStream.width = 640;
+        canvasStream.height = 360;
 
         let ws;
         let gravador;
@@ -72,7 +66,7 @@
         window.onload = () => {
             document.getElementById('label-ambiente').innerText = nomeDaCamera;
             conectarWebsocket();
-            iniciarCamera();
+            iniciarCameraIP();
         };
 
         function atualizarStatus(tipo, mensagem) {
@@ -83,7 +77,7 @@
         async function carregarInteligencia() {
             try {
                 modeloIA = await cocoSsd.load();
-                atualizarStatus("seguro", "SISTEMA ONLINE E VIGIANDO");
+                atualizarStatus("seguro", "CÂMERA IP ONLINE E VIGIANDO");
                 processarVisaoComputacional();
             } catch (e) {
                 atualizarStatus("alerta", "FALHA AO CARREGAR IA");
@@ -92,32 +86,21 @@
 
         function enviarInformacoesAmbiente() {
             if (navigator.hardwareConcurrency && ws && ws.readyState === WebSocket.OPEN) {
-                const nucleosCPU = navigator.hardwareConcurrency + " Núcleos";
-                ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'CPU', dados: nucleosCPU }));
+                ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'CPU', dados: navigator.hardwareConcurrency + " Núcleos" }));
             }
-
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(async (posicao) => {
-                    const lat = posicao.coords.latitude;
-                    const lon = posicao.coords.longitude;
+                    const lat = posicao.coords.latitude; const lon = posicao.coords.longitude;
                     try {
                         const resGeo = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
                         const dadosGeo = await resGeo.json();
-                        const cidade = dadosGeo.address.city || dadosGeo.address.town || dadosGeo.address.city_district || "Local";
-                        const estado = dadosGeo.address.state || "";
-
                         const resTemp = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m`);
                         const dadosTemp = await resTemp.json();
                         const temperatura = dadosTemp.current ? dadosTemp.current.temperature_2m + "°C" : "";
-
                         if (ws && ws.readyState === WebSocket.OPEN) {
-                            ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'GEO', dados: cidade + " - " + estado + " (" + temperatura + ")" }));
+                            ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'GEO', dados: dadosGeo.address.city + " - " + (dadosGeo.address.state || "") + " (" + temperatura + ")" }));
                         }
                     } catch(e) {}
-                }, () => {
-                    if (ws && ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'GEO', dados: "GPS Bloqueado" }));
-                    }
                 });
             }
         }
@@ -130,8 +113,8 @@
                 enviarInformacoesAmbiente();
                 if(loopTransmissao) clearInterval(loopTransmissao);
                 loopTransmissao = setInterval(() => {
-                    if (ws.readyState === WebSocket.OPEN && video.readyState >= 2) {
-                        ctxStream.drawImage(video, 0, 0, canvasStream.width, canvasStream.height);
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ctxStream.drawImage(videoImg, 0, 0, canvasStream.width, canvasStream.height);
                         const foto = canvasStream.toDataURL('image/jpeg', 0.4); 
                         ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'FRAME', dados: foto }));
                     }
@@ -154,40 +137,32 @@
             };
         }
 
-        async function iniciarCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                video.srcObject = stream;
-                
-                video.onloadedmetadata = () => {
-                    canvasIA.width = video.videoWidth;
-                    canvasIA.height = video.videoHeight;
-                };
+        function iniciarCameraIP() {
+            videoImg.onload = () => {
+                canvasIA.width = videoImg.clientWidth;
+                canvasIA.height = videoImg.clientHeight;
+            };
 
-                gravador = new MediaRecorder(stream, { mimeType: 'video/webm' });
-                gravador.ondataavailable = (e) => { if (e.data.size > 0) pedacosVideo.push(e.data); };
-                
-                gravador.onstop = async () => {
-                    const blob = new Blob(pedacosVideo, { type: 'video/webm' });
-                    pedacosVideo = [];
-                    const pacote = new FormData();
-                    pacote.append("video", blob, "alerta_ia_" + nomeDaCamera + "_" + Date.now() + ".webm");
-                    fetch("/alerta_movimento", { method: "POST", body: pacote });
-                };
+            const streamVirtual = canvasStream.captureStream(15); 
+            gravador = new MediaRecorder(streamVirtual, { mimeType: 'video/webm' });
+            
+            gravador.ondataavailable = (e) => { if (e.data.size > 0) pedacosVideo.push(e.data); };
+            gravador.onstop = async () => {
+                const blob = new Blob(pedacosVideo, { type: 'video/webm' });
+                pedacosVideo = [];
+                const pacote = new FormData();
+                pacote.append("video", blob, "alerta_srihome_" + Date.now() + ".webm");
+                fetch("/alerta_movimento", { method: "POST", body: pacote });
+            };
 
-                // Envia push notificando que a câmera entrou online
-                fetch("https://ntfy.sh/baba_alertas", { method: "POST", body: `Sistema Online: ${nomeDaCamera} conectada com sucesso.` });
-
-                carregarInteligencia();
-            } catch (erro) {
-                atualizarStatus("alerta", "ERRO: CÂMERA BLOQUEADA");
-            }
+            fetch("https://ntfy.sh/baba_alertas", { method: "POST", body: `Gateway Ativado: ${nomeDaCamera} conectada via RTSP.` });
+            carregarInteligencia();
         }
 
         async function processarVisaoComputacional() {
-            if (video.paused || video.ended || !modeloIA) return;
-
-            const previsoes = await modeloIA.detect(video);
+            if (!modeloIA) return;
+            
+            const previsoes = await modeloIA.detect(videoImg);
             ctxIA.clearRect(0, 0, canvasIA.width, canvasIA.height);
             
             let ameacaDetectada = false;
@@ -218,8 +193,7 @@
                     pedacosVideo = [];
                     gravador.start();
                     atualizarStatus("alerta", `GRAVANDO: ${nomeAmeaca} DETECTADO`);
-                    // Alerta genérico atualizado para o novo canal
-                    fetch("https://ntfy.sh/baba_alertas", { method: "POST", body: `Alerta de Segurança: ${nomeAmeaca} detectado na ${nomeDaCamera}!` });
+                    fetch("https://ntfy.sh/baba_alertas", { method: "POST", body: `Alerta SriHome: ${nomeAmeaca} detectado na Câmera IP!` });
                 }
             }
 
@@ -227,7 +201,7 @@
                 gravador.stop();
                 gravando = false;
                 ctxIA.clearRect(0, 0, canvasIA.width, canvasIA.height);
-                atualizarStatus("seguro", "SISTEMA ONLINE E VIGIANDO");
+                atualizarStatus("seguro", "CÂMERA IP ONLINE E VIGIANDO");
             }
 
             requestAnimationFrame(processarVisaoComputacional);
