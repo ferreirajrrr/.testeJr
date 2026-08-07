@@ -6,7 +6,8 @@ app = Flask(__name__)
 CORS(app)
 
 # Utilizando o seu IP Público conforme solicitado
-URL_DA_CAMERA = "rtsp://admin:Drogo9024@177.100.120.180:554/onvif1"
+# Mude apenas esta linha temporariamente para o IP interno:
+URL_DA_CAMERA = "rtsp://admin:Drogo9024@192.168.0.103:554/onvif1"
 
 def gerar_quadros():
     camera = cv2.VideoCapture(URL_DA_CAMERA)
