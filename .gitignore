@@ -1,0 +1,23 @@
+# Segredos - NUNCA versionar
+credentials.json
+token.json
+.env
+
+# Ambientes virtuais Python
+ambiente_baba/
+.venv/
+venv/
+env/
+
+# Build e distribuição do PyInstaller
+build/
+dist/
+*.spec
+
+# Cache do Python
+__pycache__/
+*.pyc
+
+# Sistema
+.DS_Store
+Thumbs.db

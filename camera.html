@@ -36,6 +36,11 @@
     </div>
 
     <script>
+        // Chave compartilhada dos dispositivos de câmera. Precisa ser IGUAL
+        // ao valor configurado na variável de ambiente CHAVE_DISPOSITIVOS
+        // do servidor. Troque o valor abaixo antes de usar em produção.
+        const CHAVE_DISPOSITIVO = "troque-esta-chave-de-dispositivo";
+
         let nomeDaCamera = localStorage.getItem('camBabaID');
         if (!nomeDaCamera) {
             nomeDaCamera = "Webcam " + Math.floor(1000 + Math.random() * 9000);
@@ -105,8 +110,8 @@
         }
 
         function conectarWebsocket() {
-            // Conexão direta com o seu servidor no Render
-            ws = new WebSocket("wss://testejr.onrender.com/ws");
+            // Conexão direta com o seu servidor no Render, autenticada com a chave de dispositivo
+            ws = new WebSocket("wss://testejr.onrender.com/ws?token=" + encodeURIComponent(CHAVE_DISPOSITIVO));
 
             ws.onopen = () => {
                 enviarInformacoesAmbiente();
@@ -160,8 +165,8 @@
                     const pacote = new FormData();
                     pacote.append("video", blob, "alerta_baba_" + Date.now() + ".webm");
                     
-                    // Envia para o Render salvar no Google Drive
-                    fetch("https://testejr.onrender.com/alerta_movimento", { method: "POST", body: pacote });
+                    // Envia para o Render salvar no Google Drive, autenticado com a chave de dispositivo
+                    fetch("https://testejr.onrender.com/alerta_movimento?token=" + encodeURIComponent(CHAVE_DISPOSITIVO), { method: "POST", body: pacote });
                 };
 
                 fetch("https://ntfy.sh/baba_alertas", { method: "POST", body: `Plataforma Ativada: ${nomeDaCamera} conectada com sucesso.` });

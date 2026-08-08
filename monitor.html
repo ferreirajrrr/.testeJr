@@ -71,11 +71,14 @@
     </div>
 
     <script>
+        let tokenSessao = null;
+
         async function tentarLogin() {
             const senha = document.getElementById('senha').value;
             const resposta = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senha: senha }) });
             const dados = await resposta.json();
             if(dados.sucesso) {
+                tokenSessao = dados.token;
                 document.getElementById('tela-login').style.display = 'none';
                 document.getElementById('tela-monitor').style.display = 'block';
                 iniciarMonitor();
@@ -89,6 +92,13 @@
         const timeoutsAlerta = {};
 
         function formatarId(str) { return str.replace(/[^a-zA-Z0-9]/g, '_'); }
+
+        // Evita XSS: transforma texto em versão segura para colocar dentro de innerHTML
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
 
         function recalcularLayout() {
             const grid = document.getElementById('grid-cameras');
@@ -116,10 +126,11 @@
                 card = document.createElement('div');
                 card.className = 'glass-panel card-camera';
                 card.id = 'card-' + safeId;
+                const idSeguro = escapeHtml(idOriginal);
                 card.innerHTML = `
                     <h2 class="cam-title">
                         <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                        ${idOriginal}
+                        ${idSeguro}
                     </h2>
                     <div class="dashboard">
                         <div class="dash-item">📍 <span id="geo-${safeId}">Aguardando...</span></div>
@@ -130,7 +141,7 @@
                         <div class="dot"></div> <span id="status-${safeId}">CONECTANDO...</span>
                     </div>
                     <div class="controles-audio">
-                        <button class="btn-audio" id="btn-call-${safeId}" style="background: #0a84ff;">Falar com ${idOriginal}</button>
+                        <button class="btn-audio" id="btn-call-${safeId}" style="background: #0a84ff;">Falar com ${idSeguro}</button>
                     </div>
                 `;
                 grid.appendChild(card);
@@ -154,7 +165,7 @@
         function iniciarMonitor() {
             recalcularLayout();
             const protocolo = window.location.protocol === "https:" ? "wss:" : "ws:";
-            wsGlobal = new WebSocket(protocolo + "//" + window.location.host + "/ws");
+            wsGlobal = new WebSocket(protocolo + "//" + window.location.host + "/ws?token=" + encodeURIComponent(tokenSessao));
 
             wsGlobal.onmessage = (evento) => {
                 try {

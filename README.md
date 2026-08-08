@@ -29,6 +29,25 @@ A arquitetura é dividida em duas frentes:
 * TensorFlow.js
 * MediaRecorder API (HTML5)
 
+## Segurança: variáveis de ambiente obrigatórias
+
+Antes de colocar em produção, configure estas variáveis de ambiente no Render
+(Settings > Environment):
+
+* `SENHA_ADMIN`: senha para acessar o painel `/monitor`. Escolha uma senha forte,
+  não use o valor padrão do código.
+* `CHAVE_DISPOSITIVOS`: chave compartilhada usada pelas câmeras (`camera.html`)
+  e pelo script `telemetria.py` para se autenticarem no servidor. Gere um valor
+  longo e aleatório e use o **mesmo valor** nos três lugares: na variável de
+  ambiente do servidor, na constante `CHAVE_DISPOSITIVO` dentro de `camera.html`,
+  e na constante `CHAVE_DISPOSITIVO` dentro de `telemetria.py`.
+
+Sem essas variáveis definidas, o servidor sobe com valores padrão inseguros
+(e avisa isso no log) só para não quebrar em ambiente de teste local.
+
+**Nunca** commite `credentials.json` ou `token.json` no Git — o `.gitignore`
+já está configurado para ignorá-los.
+
 ## Como Executar o Projeto
 
 ### 1. Configurando o Servidor (Backend)
