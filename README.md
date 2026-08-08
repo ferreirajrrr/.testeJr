@@ -45,8 +45,21 @@ Antes de colocar em produção, configure estas variáveis de ambiente no Render
 Sem essas variáveis definidas, o servidor sobe com valores padrão inseguros
 (e avisa isso no log) só para não quebrar em ambiente de teste local.
 
+Além disso, dentro de `camera.html` existe a constante `NTFY_TOPICO` — troque
+por um valor longo e aleatório também, já que tópicos do ntfy.sh são públicos
+por padrão (qualquer pessoa que souber o nome pode se inscrever nos alertas).
+
 **Nunca** commite `credentials.json` ou `token.json` no Git — o `.gitignore`
 já está configurado para ignorá-los.
+
+## Manter o servidor sempre acordado (grátis)
+
+O plano gratuito do Render "dorme" o serviço depois de um tempo sem receber
+requisições. Existe uma rota `/health` (sem autenticação, resposta leve) feita
+justamente para isso: cadastre a URL `https://SEU-APP.onrender.com/health` em
+um serviço gratuito de ping, como o [UptimeRobot](https://uptimerobot.com) ou o
+[cron-job.org](https://cron-job.org), configurado para checar a cada 5-10 minutos.
+Isso mantém o servidor acordado sem custo nenhum.
 
 ## Como Executar o Projeto
 

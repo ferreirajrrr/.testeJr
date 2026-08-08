@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect, Request, Query
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import uvicorn
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -106,6 +107,17 @@ def obter_servico_drive():
     creds = Credentials.from_authorized_user_file('token.json', SCOPES)
     return build('drive', 'v3', credentials=creds)
 
+# ============================================================
+# FORMATOS DE DADOS ESPERADOS (validados automaticamente pelo FastAPI)
+# ============================================================
+class LoginRequest(BaseModel):
+    senha: str
+
+class TelemetriaRequest(BaseModel):
+    id: str = "Desconhecida"
+    cpu: str = "0%"
+    ram: str = "0%"
+
 async def reciclar_videos_antigos():
     while True:
         try:
@@ -144,7 +156,7 @@ async def receber_video(token: str = Query(...), video: UploadFile = File(...)):
         return {"erro": "Falha ao salvar o video."}
 
 @app.post("/api/login")
-async def fazer_login(request: Request):
+async def fazer_login(dados: LoginRequest, request: Request):
     ip = request.client.host if request.client else "desconhecido"
     agora = time.time()
     registro = tentativas_login.get(ip)
@@ -152,10 +164,7 @@ async def fazer_login(request: Request):
     if registro and registro["bloqueado_ate"] > agora:
         return {"sucesso": False, "erro": "Muitas tentativas. Tente novamente em alguns minutos."}
 
-    dados = await request.json()
-    senha_recebida = dados.get("senha", "")
-
-    if hmac.compare_digest(senha_recebida, SENHA_ADMIN):
+    if hmac.compare_digest(dados.senha, SENHA_ADMIN):
         tentativas_login.pop(ip, None)
         token = gerar_token_sessao()
         return {"sucesso": True, "token": token}
@@ -166,14 +175,13 @@ async def fazer_login(request: Request):
     return {"sucesso": False}
 
 @app.post("/api/telemetria")
-async def receber_telemetria(request: Request, token: str = Query(...)):
+async def receber_telemetria(dados: TelemetriaRequest, token: str = Query(...)):
     if not token_valido(token):
         return {"status": "erro", "mensagem": "nao autorizado"}
     global cache_telemetria
-    dados = await request.json()
-    cam_id = dados.get("id", "Desconhecida")
-    cpu = dados.get("cpu", "0%")
-    ram = dados.get("ram", "0%")
+    cam_id = dados.id
+    cpu = dados.cpu
+    ram = dados.ram
 
     cache_telemetria[cam_id] = {"cpu": cpu, "ram": ram}
 
@@ -230,6 +238,13 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(None)):
         if websocket in clientes_conectados:
             clientes_conectados.remove(websocket)
         log.info("Cliente desconectado (%d ativos)", len(clientes_conectados))
+
+@app.get("/health")
+async def verificar_saude():
+    # Endpoint leve, sem autenticação, só para serviços de "ping" (tipo
+    # UptimeRobot ou cron-job.org) manterem o servidor acordado no plano
+    # gratuito do Render. Não consulta o Google Drive nem nada pesado.
+    return {"status": "ok"}
 
 @app.get("/")
 async def renderizar_index():

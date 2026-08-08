@@ -7,7 +7,7 @@ URL = "https://testejr.onrender.com/api/telemetria"
 NOME_AMBIENTE = "Câmera 1234"
 
 # Precisa ser IGUAL ao valor da variável de ambiente CHAVE_DISPOSITIVOS no servidor
-CHAVE_DISPOSITIVO = "VQbQwo-_9K7S0GvSbAlPvibU7SYfRwUo-_2caiYBQXI"
+CHAVE_DISPOSITIVO = "troque-esta-chave-de-dispositivo"
 
 while True:
     try:
