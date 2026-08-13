@@ -17,7 +17,7 @@ A arquitetura é dividida em duas frentes:
 * **Gravação Automática:** Quando a IA detecta uma ameaça, o sistema grava um clipe e faz o upload automático para uma pasta segura no Google Drive.
 * **Alertas Push:** Integração com Ntfy para enviar notificações instantâneas para dispositivos móveis no momento da detecção.
 * **Áudio Bidirecional:** Possibilidade de enviar comandos de voz do painel de monitoramento diretamente para as caixas de som do dispositivo que está filmando.
-* **Telemetria Integrada:** O dashboard exibe informações de hardware (núcleos de CPU), localização geográfica e temperatura local (Open-Meteo) de cada nó conectado.
+* **Telemetria Integrada:** O dashboard exibe localização geográfica e temperatura local (Open-Meteo) de cada nó conectado.
 * **Escalabilidade Plug-and-Play:** Não há necessidade de configurar IPs ou portas. Basta abrir o arquivo da câmera em múltiplos computadores ou tablets e o painel de monitoramento organizará os fluxos automaticamente em um grid.
 
 ## Tecnologias Utilizadas
@@ -36,11 +36,10 @@ Antes de colocar em produção, configure estas variáveis de ambiente no Render
 
 * `SENHA_ADMIN`: senha para acessar o painel `/monitor`. Escolha uma senha forte,
   não use o valor padrão do código.
-* `CHAVE_DISPOSITIVOS`: chave compartilhada usada pelas câmeras (`camera.html`)
-  e pelo script `telemetria.py` para se autenticarem no servidor. Gere um valor
-  longo e aleatório e use o **mesmo valor** nos três lugares: na variável de
-  ambiente do servidor, na constante `CHAVE_DISPOSITIVO` dentro de `camera.html`,
-  e na constante `CHAVE_DISPOSITIVO` dentro de `telemetria.py`.
+* `CHAVE_DISPOSITIVOS`: chave compartilhada usada pela câmera (`camera.html`)
+  para se autenticar no servidor. Gere um valor
+  longo e aleatório e use o **mesmo valor** nos dois lugares: na variável de
+  ambiente do servidor e na constante `CHAVE_DISPOSITIVO` dentro de `camera.html`.
 
 Sem essas variáveis definidas, o servidor sobe com valores padrão inseguros
 (e avisa isso no log) só para não quebrar em ambiente de teste local.

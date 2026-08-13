@@ -34,7 +34,6 @@ app.add_middleware(
 clientes_conectados = []
 
 cache_geo = {}
-cache_telemetria = {}
 
 # ============================================================
 # CONFIGURAÇÃO - tudo sensível vem de variáveis de ambiente.
@@ -53,10 +52,10 @@ if not SENHA_ADMIN:
         "Usando senha padrao INSEGURA. Configure SENHA_ADMIN no ambiente."
     )
 
-# Chave compartilhada usada pelos dispositivos de câmera (camera.html e
-# telemetria.py) para autenticar no /ws e nos endpoints de escrita.
-# É separada da senha do painel administrativo: se essa chave vazar,
-# quem a tiver só consegue TRANSMITIR como câmera, não ver o painel todo.
+# Chave compartilhada usada pela câmera (camera.html) para autenticar
+# no /ws e nos endpoints de escrita. É separada da senha do painel
+# administrativo: se essa chave vazar, quem a tiver só consegue
+# TRANSMITIR como câmera, não ver o painel todo.
 CHAVE_DISPOSITIVOS = os.environ.get("CHAVE_DISPOSITIVOS")
 if not CHAVE_DISPOSITIVOS:
     CHAVE_DISPOSITIVOS = "troque-esta-chave-de-dispositivo"
@@ -112,11 +111,6 @@ def obter_servico_drive():
 # ============================================================
 class LoginRequest(BaseModel):
     senha: str
-
-class TelemetriaRequest(BaseModel):
-    id: str = "Desconhecida"
-    cpu: str = "0%"
-    ram: str = "0%"
 
 async def reciclar_videos_antigos():
     while True:
@@ -174,27 +168,9 @@ async def fazer_login(dados: LoginRequest, request: Request):
     tentativas_login[ip] = {"falhas": falhas, "bloqueado_ate": bloqueado_ate}
     return {"sucesso": False}
 
-@app.post("/api/telemetria")
-async def receber_telemetria(dados: TelemetriaRequest, token: str = Query(...)):
-    if not token_valido(token):
-        return {"status": "erro", "mensagem": "nao autorizado"}
-    global cache_telemetria
-    cam_id = dados.id
-    cpu = dados.cpu
-    ram = dados.ram
-
-    cache_telemetria[cam_id] = {"cpu": cpu, "ram": ram}
-
-    for cliente in clientes_conectados:
-        try:
-            await cliente.send_text(json.dumps({"id": cam_id, "tipo": "TELEMETRIA", "cpu": cpu, "ram": ram}))
-        except Exception:
-            pass
-    return {"status": "ok"}
-
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(None)):
-    global cache_geo, cache_telemetria
+    global cache_geo
 
     if not token_valido(token):
         await websocket.close(code=4401)
@@ -206,10 +182,6 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(None)):
 
     for cam_id, geo in cache_geo.items():
         try: await websocket.send_text(json.dumps({"id": cam_id, "tipo": "GEO", "dados": geo}))
-        except Exception: pass
-
-    for cam_id, tel in cache_telemetria.items():
-        try: await websocket.send_text(json.dumps({"id": cam_id, "tipo": "TELEMETRIA", "cpu": tel["cpu"], "ram": tel["ram"]}))
         except Exception: pass
 
     try:

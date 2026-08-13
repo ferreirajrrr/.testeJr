@@ -39,7 +39,7 @@
         // Chave compartilhada dos dispositivos de câmera. Precisa ser IGUAL
         // ao valor configurado na variável de ambiente CHAVE_DISPOSITIVOS
         // do servidor. Troque o valor abaixo antes de usar em produção.
-        const CHAVE_DISPOSITIVO = "VQbQwo-_9K7S0GvSbAlPvibU7SYfRwUo-_2caiYBQXI";
+        const CHAVE_DISPOSITIVO = "troque-esta-chave-de-dispositivo";
 
         // Tópico do ntfy.sh usado para notificações push. Tópicos do ntfy.sh
         // são públicos por padrão — qualquer pessoa que souber esse nome
@@ -85,10 +85,10 @@
         const LIMIAR_SOM_ALTO = 0.18;             // volume (RMS) considerado "som alto" quando não reconhecido
 
         const CATEGORIAS_AUDIO = [
-            { chave: 'CHORO_BEBE', label: 'Choro de bebê', termos: ['baby cry', 'infant cry', 'crying, sobbing'] },
-            { chave: 'LATIDO',     label: 'Latido de cachorro', termos: ['bark', 'dog'] },
-            { chave: 'MIADO',      label: 'Miado de gato', termos: ['meow', 'cat'] },
-            { chave: 'GRITO',      label: 'Grito', termos: ['scream', 'shout', 'yell'] },
+            { chave: 'CHORO_BEBE', label: 'Choro de bebê', termos: ['baby cry', 'infant cry', 'crying, sobbing'], tag: 'baby' },
+            { chave: 'LATIDO',     label: 'Latido de cachorro', termos: ['bark', 'dog'], tag: 'dog' },
+            { chave: 'MIADO',      label: 'Miado de gato', termos: ['meow', 'cat'], tag: 'cat' },
+            { chave: 'GRITO',      label: 'Grito', termos: ['scream', 'shout', 'yell'], tag: 'scream' },
         ];
 
         window.onload = () => {
@@ -214,33 +214,34 @@
                 });
 
                 if (categoriaDetectada) {
-                    dispararAlertaDeAudio(categoriaDetectada.label);
+                    dispararAlertaDeAudio(categoriaDetectada.label, categoriaDetectada.tag);
                 } else if (volume > LIMIAR_SOM_ALTO) {
-                    dispararAlertaDeAudio('Som alto não identificado');
+                    dispararAlertaDeAudio('Som alto não identificado', 'loud_sound');
                 }
             } catch (e) {
                 console.log('Erro ao analisar áudio:', e);
             }
         }
 
-        function dispararAlertaDeAudio(rotulo) {
+        function dispararAlertaDeAudio(rotulo, tagIcone) {
             tempoUltimoMovimento = Date.now();
             if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'ALERTA', dados: `SOM DETECTADO: ${rotulo}` }));
+                ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'ALERTA', origem: 'audio', dados: `SOM DETECTADO: ${rotulo}` }));
             }
             if (!gravando && gravador && gravador.state === "inactive") {
                 gravando = true;
                 pedacosVideo = [];
                 gravador.start();
                 atualizarStatus("alerta", `GRAVANDO: ${rotulo.toUpperCase()}`);
-                fetch("https://ntfy.sh/" + NTFY_TOPICO, { method: "POST", body: `Alerta de som: ${rotulo} detectado na câmera!` });
+                fetch("https://ntfy.sh/" + NTFY_TOPICO, {
+                    method: "POST",
+                    headers: { "Title": "Alerta de Som", "Tags": tagIcone || "loud_sound" },
+                    body: `Alerta de som: ${rotulo} detectado na câmera!`
+                });
             }
         }
 
         function enviarInformacoesAmbiente() {
-            if (navigator.hardwareConcurrency && ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'TELEMETRIA', cpu: navigator.hardwareConcurrency + " Núcleos", ram: "Navegador" }));
-            }
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(async (posicao) => {
                     const lat = posicao.coords.latitude; const lon = posicao.coords.longitude;
@@ -360,7 +361,7 @@
                 if (ameacaDetectada) {
                     tempoUltimoMovimento = Date.now();
                     if (ws && ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'ALERTA', dados: `IA DETECTOU: ${nomeAmeaca}` }));
+                        ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'ALERTA', origem: 'video', dados: `IA DETECTOU: ${nomeAmeaca}` }));
                     }
                     if (!gravando && gravador.state === "inactive") {
                         gravando = true;
@@ -369,7 +370,11 @@
                         atualizarStatus("alerta", `GRAVANDO: ${nomeAmeaca} DETECTADO`);
                         
                         // Notificação Push no celular via Ntfy
-                        fetch("https://ntfy.sh/" + NTFY_TOPICO, { method: "POST", body: `Alerta do Monitor: ${nomeAmeaca} detectado na câmera!` });
+                        fetch("https://ntfy.sh/" + NTFY_TOPICO, {
+                            method: "POST",
+                            headers: { "Title": "Alerta de Vigilância", "Tags": "camera" },
+                            body: `Alerta do Monitor: ${nomeAmeaca} detectado na câmera!`
+                        });
                     }
                 }
 

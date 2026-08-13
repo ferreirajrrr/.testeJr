@@ -43,6 +43,9 @@
         .seguro .dot { background: #32d74b; box-shadow: 0 0 10px #32d74b; }
         .alerta { background: rgba(255, 69, 58, 0.1) !important; border-color: rgba(255, 69, 58, 0.3) !important; color: #ff453a !important; }
         .alerta .dot { background: #ff453a !important; box-shadow: 0 0 10px #ff453a !important; animation: pulse 1s infinite; }
+        .alerta-audio { background: rgba(191, 90, 242, 0.12) !important; border-color: rgba(191, 90, 242, 0.4) !important; color: #bf5af2 !important; }
+        .alerta-audio .dot { background: #bf5af2 !important; box-shadow: 0 0 10px #bf5af2 !important; animation: pulse 1s infinite; }
+        .glass-panel.alerta-border-audio { border-color: rgba(191, 90, 242, 0.4); background: rgba(191, 90, 242, 0.05); }
         
         #modulador-global { display: none; width: 100%; max-width: 400px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin: 0 auto 20px auto; }
         #barra-som-global { height: 100%; background: #32d74b; width: 0%; transition: width 0.05s; }
@@ -134,7 +137,6 @@
                     </h2>
                     <div class="dashboard">
                         <div class="dash-item">📍 <span id="geo-${safeId}">Aguardando...</span></div>
-                        <div class="dash-item">💻 <span id="cpu-${safeId}">0%</span> | 🧠 <span id="ram-${safeId}">0%</span></div>
                     </div>
                     <img id="vid-${safeId}" alt="Aguardando transmissão..." />
                     <div id="badge-${safeId}" class="status-badge alerta">
@@ -156,7 +158,7 @@
             const badge = document.getElementById('badge-' + safeId);
             const txt = document.getElementById('status-' + safeId);
             if(card) {
-                card.classList.remove('alerta-border');
+                card.classList.remove('alerta-border', 'alerta-border-audio');
                 badge.className = 'status-badge seguro';
                 txt.innerText = 'SINAL ESTÁVEL';
             }
@@ -194,9 +196,12 @@
                         const card = document.getElementById('card-' + safeId);
                         const badge = document.getElementById('badge-' + safeId);
                         if(card) {
-                            card.classList.add('alerta-border');
-                            badge.className = 'status-badge alerta';
-                            document.getElementById('status-' + safeId).innerText = pacote.dados.toUpperCase();
+                            const ehAudio = pacote.origem === 'audio';
+                            card.classList.remove('alerta-border', 'alerta-border-audio');
+                            card.classList.add(ehAudio ? 'alerta-border-audio' : 'alerta-border');
+                            badge.className = 'status-badge ' + (ehAudio ? 'alerta-audio' : 'alerta');
+                            const icone = ehAudio ? '🔊 ' : '👁 ';
+                            document.getElementById('status-' + safeId).innerText = icone + pacote.dados.toUpperCase();
                             
                             clearTimeout(timeoutsAlerta[safeId]);
                             timeoutsAlerta[safeId] = setTimeout(() => { marcarSeguro(safeId); }, 5000);
@@ -204,10 +209,6 @@
                     } 
                     else if (pacote.tipo === 'GEO') {
                         document.getElementById('geo-' + safeId).innerText = pacote.dados;
-                    } 
-                    else if (pacote.tipo === 'TELEMETRIA') {
-                        document.getElementById('cpu-' + safeId).innerText = pacote.cpu;
-                        document.getElementById('ram-' + safeId).innerText = pacote.ram;
                     }
                 } catch (e) {}
             };
