@@ -45,7 +45,7 @@
         // são públicos por padrão — qualquer pessoa que souber esse nome
         // pode se inscrever e ver os alertas. Troque por um valor longo e
         // aleatório (pode usar o mesmo tipo de sequência da CHAVE_DISPOSITIVO).
-        const NTFY_TOPICO = "tsHCEUIRAW-9KIB1EDIDksdV-yR0g2nU";
+        const NTFY_TOPICO = "troque-para-um-topico-aleatorio";
 
         let nomeDaCamera = localStorage.getItem('camBabaID');
         if (!nomeDaCamera) {
@@ -71,7 +71,25 @@
         let tempoUltimoMovimento = 0;
         let modeloIA = null;
         let loopTransmissao; 
+        let streamAtual = null;
         const alvos = ['person', 'dog', 'cat'];
+
+        // ===== Detecção de som (choro, latido, miado, grito) =====
+        let modeloAudio = null;
+        let audioCtx, audioSource, audioProcessor;
+        let bufferAudioAcumulado = [];
+        let ultimaAnaliseAudio = 0;
+        let indicesCategorias = {};
+        const INTERVALO_ANALISE_AUDIO_MS = 1000; // roda a IA de áudio a cada 1s
+        const LIMIAR_CLASSE_AUDIO = 0.3;          // confiança mínima pra aceitar um som específico
+        const LIMIAR_SOM_ALTO = 0.18;             // volume (RMS) considerado "som alto" quando não reconhecido
+
+        const CATEGORIAS_AUDIO = [
+            { chave: 'CHORO_BEBE', label: 'Choro de bebê', termos: ['baby cry', 'infant cry', 'crying, sobbing'] },
+            { chave: 'LATIDO',     label: 'Latido de cachorro', termos: ['bark', 'dog'] },
+            { chave: 'MIADO',      label: 'Miado de gato', termos: ['meow', 'cat'] },
+            { chave: 'GRITO',      label: 'Grito', termos: ['scream', 'shout', 'yell'] },
+        ];
 
         window.onload = () => {
             document.getElementById('label-ambiente').innerText = nomeDaCamera;
@@ -91,6 +109,131 @@
                 processarVisaoComputacional();
             } catch (e) {
                 atualizarStatus("alerta", "FALHA AO CARREGAR IA");
+            }
+        }
+
+        // ===== IA de áudio: carrega o modelo e a lista de classes de som =====
+        async function carregarInteligenciaAudio() {
+            try {
+                modeloAudio = await tf.loadGraphModel('https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1', { fromTFHub: true });
+
+                const respostaCsv = await fetch('https://raw.githubusercontent.com/tensorflow/models/master/research/audioset/yamnet/yamnet_class_map.csv');
+                const textoCsv = await respostaCsv.text();
+                const nomesClasseAudio = textoCsv.trim().split('\n').slice(1).map(linha => {
+                    const partes = linha.split(',');
+                    return partes.slice(2).join(',').replace(/"/g, '').trim();
+                });
+
+                CATEGORIAS_AUDIO.forEach(categoria => {
+                    const indiceEncontrado = nomesClasseAudio.findIndex(nome =>
+                        categoria.termos.some(termo => nome.toLowerCase().includes(termo))
+                    );
+                    indicesCategorias[categoria.chave] = indiceEncontrado;
+                });
+
+                iniciarEscutaDeAudio();
+            } catch (e) {
+                console.log('Não foi possível carregar a IA de áudio:', e);
+            }
+        }
+
+        // Liga o microfone num "canal silencioso" (não toca nada, só analisa)
+        function iniciarEscutaDeAudio() {
+            if (!streamAtual) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            audioSource = audioCtx.createMediaStreamSource(streamAtual);
+            audioProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
+
+            const nodoSilencioso = audioCtx.createGain();
+            nodoSilencioso.gain.value = 0; // impede o eco do próprio áudio
+
+            audioSource.connect(audioProcessor);
+            audioProcessor.connect(nodoSilencioso);
+            nodoSilencioso.connect(audioCtx.destination);
+
+            audioProcessor.onaudioprocess = (evento) => {
+                const dados = evento.inputBuffer.getChannelData(0);
+                for (let i = 0; i < dados.length; i++) bufferAudioAcumulado.push(dados[i]);
+
+                const amostrasNecessarias = audioCtx.sampleRate; // ~1 segundo de áudio
+                if (bufferAudioAcumulado.length >= amostrasNecessarias) {
+                    const trecho = bufferAudioAcumulado.splice(0, amostrasNecessarias);
+                    const agora = Date.now();
+                    if (agora - ultimaAnaliseAudio >= INTERVALO_ANALISE_AUDIO_MS) {
+                        ultimaAnaliseAudio = agora;
+                        analisarTrechoDeAudio(trecho, audioCtx.sampleRate);
+                    }
+                }
+            };
+        }
+
+        // Reduz a taxa de amostragem para 16kHz, que é o que o modelo espera
+        function reamostrarPara16k(amostras, taxaOriginal) {
+            if (taxaOriginal === 16000) return amostras;
+            const razao = taxaOriginal / 16000;
+            const tamanhoNovo = Math.floor(amostras.length / razao);
+            const resultado = new Float32Array(tamanhoNovo);
+            for (let i = 0; i < tamanhoNovo; i++) {
+                resultado[i] = amostras[Math.floor(i * razao)];
+            }
+            return resultado;
+        }
+
+        function calcularVolumeRMS(amostras) {
+            let soma = 0;
+            for (let i = 0; i < amostras.length; i++) soma += amostras[i] * amostras[i];
+            return Math.sqrt(soma / amostras.length);
+        }
+
+        async function analisarTrechoDeAudio(amostrasOriginais, taxaOriginal) {
+            if (!modeloAudio) return;
+            const amostras16k = reamostrarPara16k(amostrasOriginais, taxaOriginal);
+            const volume = calcularVolumeRMS(amostras16k);
+
+            try {
+                const entrada = tf.tensor1d(amostras16k);
+                const saida = modeloAudio.predict(entrada);
+                const listaSaida = Array.isArray(saida) ? saida : [saida];
+                const pontuacoesPorQuadro = listaSaida[0];
+                const media = pontuacoesPorQuadro.mean(0);
+                const valores = await media.data();
+
+                tf.dispose(entrada);
+                tf.dispose(listaSaida);
+                tf.dispose(media);
+
+                let categoriaDetectada = null;
+                let melhorPontuacao = 0;
+
+                CATEGORIAS_AUDIO.forEach(categoria => {
+                    const indice = indicesCategorias[categoria.chave];
+                    if (indice >= 0 && valores[indice] > LIMIAR_CLASSE_AUDIO && valores[indice] > melhorPontuacao) {
+                        categoriaDetectada = categoria;
+                        melhorPontuacao = valores[indice];
+                    }
+                });
+
+                if (categoriaDetectada) {
+                    dispararAlertaDeAudio(categoriaDetectada.label);
+                } else if (volume > LIMIAR_SOM_ALTO) {
+                    dispararAlertaDeAudio('Som alto não identificado');
+                }
+            } catch (e) {
+                console.log('Erro ao analisar áudio:', e);
+            }
+        }
+
+        function dispararAlertaDeAudio(rotulo) {
+            tempoUltimoMovimento = Date.now();
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ id: nomeDaCamera, tipo: 'ALERTA', dados: `SOM DETECTADO: ${rotulo}` }));
+            }
+            if (!gravando && gravador && gravador.state === "inactive") {
+                gravando = true;
+                pedacosVideo = [];
+                gravador.start();
+                atualizarStatus("alerta", `GRAVANDO: ${rotulo.toUpperCase()}`);
+                fetch("https://ntfy.sh/" + NTFY_TOPICO, { method: "POST", body: `Alerta de som: ${rotulo} detectado na câmera!` });
             }
         }
 
@@ -153,8 +296,8 @@
         async function iniciarCameraLocal() {
             try {
                 // Pede permissão para acessar a câmera e o microfone
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                videoElem.srcObject = stream;
+                streamAtual = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                videoElem.srcObject = streamAtual;
                 
                 videoElem.onloadedmetadata = () => {
                     canvasIA.width = videoElem.videoWidth;
@@ -162,7 +305,7 @@
                 };
 
                 // Configura o gravador de vídeo nativo
-                gravador = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                gravador = new MediaRecorder(streamAtual, { mimeType: 'video/webm' });
                 
                 gravador.ondataavailable = (e) => { if (e.data.size > 0) pedacosVideo.push(e.data); };
                 gravador.onstop = async () => {
@@ -177,6 +320,7 @@
 
                 fetch("https://ntfy.sh/" + NTFY_TOPICO, { method: "POST", body: `Plataforma Ativada: ${nomeDaCamera} conectada com sucesso.` });
                 carregarInteligencia();
+                carregarInteligenciaAudio();
 
             } catch (err) {
                 atualizarStatus("alerta", "PERMISSÃO DE CÂMERA NEGADA");
